@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.test.blog.testfortestuser.dao.TestUserMapper">
+
+    <select id = "insertTestUser" resultType="TestUser">
+        INSERT test_user(username, age) VALUES (#{username}, #{age})
+    </select>
+    <select id = "deleteTestUser" resultType="TestUser">
+        DELETE FROM test_user WHERE username = #{username}
+    </select>
+    <select id = "selectUserByName" resultType="TestUser">
+        select * from test_user where username = #{username}
+    </select>
+
+</mapper>

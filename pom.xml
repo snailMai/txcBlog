@@ -53,6 +53,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-tomcat</artifactId>
+<!--			打包需要注释provided-->
 <!--			<scope>provided</scope>-->
 		</dependency>
 		<dependency>
@@ -69,7 +70,7 @@
 
 	<build>
 <!--		finalName是打压后的报名-->
-<!--		<finalName>myBlog</finalName>-->
+		<finalName>myBlog</finalName>
 		<filters>
 			<filter>src/main/resources/application-test.properties</filter>
 		</filters>

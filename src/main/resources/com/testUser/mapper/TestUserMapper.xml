@@ -13,5 +13,11 @@
     <select id = "selectUserByName" resultType="TestUser">
         select * from test_user where username = #{username}
     </select>
+    <select id = "findAllTestUser" resultType="TestUser">
+        select * from test_user
+    </select>
+    <select id = "countTestUser" resultType="Integer">
+        select count(1) from test_user
+    </select>
 
 </mapper>

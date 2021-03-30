@@ -20,4 +20,10 @@
         select count(1) from test_user
     </select>
 
+    <select id = "findAllTestUserByNameAge" resultType="TestUser">
+        select * from test_user ${sqlData}
+    </select>
+
+
+
 </mapper>

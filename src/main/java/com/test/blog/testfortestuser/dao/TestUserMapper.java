@@ -13,6 +13,7 @@ public interface TestUserMapper {
     TestUser deleteTestUser(String username);
     TestUser selectUserByName(String username);
     ArrayList<TestUser> findAllTestUser();
+    ArrayList<TestUser> findAllTestUserByNameAge(String sqlData);
     Integer countTestUser();
 //    TestUser
 }

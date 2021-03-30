@@ -34,7 +34,6 @@ public class TestUserController {
             log.info("-----------pic----------");
             return testUser;
         }catch (Exception e){
-            System.out.println("call method failed,error: " + e);
             log.error("call error: " + e);
         }
 
@@ -57,7 +56,6 @@ public class TestUserController {
             log.info("add user success, the user is " + username);
             return testUser;
         }catch (Exception e){
-            System.out.println("call method failed,error: " + e);
             log.error("call error: " + e);
         }
         return null;
@@ -103,7 +101,7 @@ public class TestUserController {
             log.info("----------getAllTestUser-----------");
             return listTestUser;
         }catch (Exception e){
-            System.out.println("call method failed,error: " + e);
+            log.error("call method failed,error: " + e);
         }
         return null;
     }
@@ -117,8 +115,45 @@ public class TestUserController {
             log.info("----------getTestUserNumber-----------");
             return testUserNumber;
         }catch (Exception e){
-            System.out.println("call method failed,error: " + e);
             log.error("call error: " + e);
+        }
+        return null;
+    }
+
+
+    // requestPara
+
+    @RequestMapping(value = "/alla", method = RequestMethod.GET)
+    public ArrayList<TestUser> getAllTestUserByNameOrAge(@RequestParam(value = "age", required = false) Integer age,
+                                                         @RequestParam(value = "username", required = false, defaultValue = "") String username)  throws  Exception{
+        ArrayList<TestUser> listTestUser;
+        log.info("requestBody age:" + age);
+        log.info("requestBody username" + username);
+
+        //当前方式不知道有没有 sql注入风险
+        String sqlData = "WHERE";
+        if (age != null){
+            sqlData = sqlData + " age = " + age;
+        }
+        if (username.equals("")){
+
+        }else if(age != null && !username.equals("")){
+            sqlData = sqlData + " AND username = " + "\'" + username + "\'";
+        }else {
+            sqlData = sqlData + " username = " + "\'" + username + "\'";
+        }
+
+        try{
+            if (sqlData.equals("WHERE")){
+                listTestUser = testUserMapper.findAllTestUser();
+            }else {
+                listTestUser = testUserMapper.findAllTestUserByNameAge(sqlData);
+            }
+            log.debug("-----------debug----------");
+            log.info("----------getAllTestUserByNameOrAge success-----------");
+            return listTestUser;
+        }catch (Exception e){
+            log.error("call method failed,error: " + e);
         }
         return null;
     }

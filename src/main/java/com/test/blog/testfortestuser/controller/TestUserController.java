@@ -92,7 +92,7 @@ public class TestUserController {
         return null;
     }
 
-    @RequestMapping(value = "/all", method = RequestMethod.GET)
+    @RequestMapping(value = "/allTestUser", method = RequestMethod.GET)
     public ArrayList<TestUser> getAllTestUser() throws  Exception{
         ArrayList<TestUser> listTestUser;
         try{
@@ -121,9 +121,9 @@ public class TestUserController {
     }
 
 
-    // requestPara
+    // @RequestParam
 
-    @RequestMapping(value = "/alla", method = RequestMethod.GET)
+    @RequestMapping(value = "/filterTestUser", method = RequestMethod.GET)
     public ArrayList<TestUser> getAllTestUserByNameOrAge(@RequestParam(value = "age", required = false) Integer age,
                                                          @RequestParam(value = "username", required = false, defaultValue = "") String username)  throws  Exception{
         ArrayList<TestUser> listTestUser;
@@ -158,4 +158,45 @@ public class TestUserController {
         return null;
     }
 
+    // @RequestBody
+    @RequestMapping(value = "addTestUser", method = RequestMethod.POST)
+    public TestUser addTestUserResponse(@RequestBody TestUser requestTestUser) {
+        Integer testUserNumber = testUserMapper.countTestUser();
+
+        String username = requestTestUser.getUsername();
+        int age = requestTestUser.getAge();
+
+        if (testUserNumber > 100){
+            log.error("addUser failed: the user reach the limit");
+            return null;
+        }
+        TestUser testUser = new TestUser();
+        try{
+            testUser = testUserMapper.insertTestUser(username, age);
+            log.debug("-----------debug----------");
+            log.info("-----------addTestUserResponse----------");
+            log.info("add user success, the user is " + username);
+            return testUser;
+        }catch (Exception e){
+            log.error("call error: " + e);
+        }
+        return null;
+    }
+
+
+    // all interface
+    @RequestMapping(value = "/all", method = RequestMethod.GET)
+    public String getAllInterface(){
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("get pic,test \n");
+        stringBuilder.append("post {username}_{age},{username}_{age} \n");
+        stringBuilder.append("get {username},username \n");
+        stringBuilder.append("delete {username},username \n");
+        stringBuilder.append("get allTestUser,null \n");
+        stringBuilder.append("get number,null \n");
+        stringBuilder.append("get filterTestUser,requestParam \n");
+        stringBuilder.append("post addTestUser,requestBody");
+        log.info(stringBuilder.toString());
+        return stringBuilder.toString();
+    }
 }

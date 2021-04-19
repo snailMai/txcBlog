@@ -7,7 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
 
 import java.util.ArrayList;
 
@@ -37,6 +40,21 @@ public class TestUserController {
             log.error("call error: " + e);
         }
 
+        return null;
+    }
+
+    // vue
+    @RequestMapping(value = "/allTestUserVue", method = RequestMethod.GET)
+    public ArrayList<TestUser> getAllTestUserVue() throws  Exception{
+        ArrayList<TestUser> listTestUser;
+        try{
+            listTestUser = testUserMapper.findAllTestUser();
+            log.debug("-----------debug----------");
+            log.info("----------getAllTestUser-----------");
+            return listTestUser;
+        }catch (Exception e){
+            log.error("call method failed,error: " + e);
+        }
         return null;
     }
 

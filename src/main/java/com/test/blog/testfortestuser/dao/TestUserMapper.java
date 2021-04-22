@@ -14,6 +14,7 @@ public interface TestUserMapper {
     TestUser deleteTestUser(String username);
     TestUser selectUserByName(String username);
     ArrayList<TestUser> findAllTestUser();
+    ArrayList<TestUser> findAllTestUserByPage(int startIndex, int pageSize);
     ArrayList<TestUser> findAllTestUserByNameAge(String sqlData);
     Integer countTestUser();
 //    TestUser

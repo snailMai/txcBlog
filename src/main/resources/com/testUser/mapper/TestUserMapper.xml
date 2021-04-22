@@ -24,6 +24,10 @@
         select * from test_user ${sqlData}
     </select>
 
+    <select id = "findAllTestUserByPage" resultType="TestUser">
+        select * from test_user LIMIT #{startIndex}, #{pageSize}
+    </select>
+
 
 
 </mapper>

@@ -66,6 +66,12 @@
 			<artifactId>hibernate-core</artifactId>
 			<version>5.3.7.Final</version>
 		</dependency>
+<!--		mybatis分页组件-->
+<!--		<dependency>-->
+<!--			<groupId>com.github.pagehelper</groupId>-->
+<!--			<artifactId>pagehelper</artifactId>-->
+<!--			<version>4.1.6</version>-->
+<!--		</dependency>-->
 	</dependencies>
 
 	<build>

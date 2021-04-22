@@ -1,6 +1,7 @@
 package com.test.blog.testfortestuser.controller;
 
 
+import com.github.pagehelper.PageHelper;
 import com.test.blog.testfortestuser.dao.TestUserMapper;
 import com.test.blog.testfortestuser.domain.TestUser;
 import org.slf4j.Logger;
@@ -49,6 +50,24 @@ public class TestUserController {
         ArrayList<TestUser> listTestUser;
         try{
             listTestUser = testUserMapper.findAllTestUser();
+            log.debug("-----------debug----------");
+            log.info("----------getAllTestUser-----------");
+            return listTestUser;
+        }catch (Exception e){
+            log.error("call method failed,error: " + e);
+        }
+        return null;
+    }
+
+    // vue
+    @RequestMapping(value = "/allTestUserVue/{page}", method = RequestMethod.GET)
+    public ArrayList<TestUser> getAllTestUserVuePage(@PathVariable Integer page) throws  Exception{
+        //PageHelper.startPage(page, pageSize);这段代码表示，程序开始分页了，
+        //page默认值是1，pageSize默认是10，意思是从第1页开始，每页显示10条记录。
+//        PageHelper.startPage(page, 5);
+        ArrayList<TestUser> listTestUser;
+        try{
+            listTestUser = testUserMapper.findAllTestUserByPage((page-1) * 5, 5);
             log.debug("-----------debug----------");
             log.info("----------getAllTestUser-----------");
             return listTestUser;

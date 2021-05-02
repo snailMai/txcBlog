@@ -1,18 +1,13 @@
 package com.test.blog.testfortestuser.controller;
 
 
-import com.github.pagehelper.PageHelper;
 import com.test.blog.testfortestuser.dao.TestUserMapper;
 import com.test.blog.testfortestuser.domain.TestUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.ModelAndView;
-
 import java.util.ArrayList;
 
 
@@ -77,26 +72,7 @@ public class TestUserController {
         return null;
     }
 
-    @RequestMapping(value = "{username}_{age}", method = RequestMethod.POST)
-    public TestUser addTestUser(@PathVariable String username, @PathVariable Integer age) {
-        Integer testUserNumber = testUserMapper.countTestUser();
 
-        if (testUserNumber > 100){
-            log.error("addUser failed: the user reach the limit");
-            return null;
-        }
-        TestUser testUser = new TestUser();
-        try{
-            testUser = testUserMapper.insertTestUser(username, age);
-            log.debug("-----------debug----------");
-            log.info("-----------addTestUser----------");
-            log.info("add user success, the user is " + username);
-            return testUser;
-        }catch (Exception e){
-            log.error("call error: " + e);
-        }
-        return null;
-    }
 
     @RequestMapping(value = "{username}", method = RequestMethod.GET)
     public TestUser getTestUserByName(@PathVariable String username ) {
@@ -114,14 +90,18 @@ public class TestUserController {
     }
 
     @RequestMapping(value = "{username}", method = RequestMethod.DELETE)
-    public TestUser deleteTestUserByName(@PathVariable String username ) {
-        TestUser testUser = new TestUser();
+    public String deleteTestUserByName(@PathVariable String username ) {
+//        TestUser testUser = new TestUser();
         try{
-            testUser = testUserMapper.deleteTestUser(username);
-            log.debug("-----------debug----------");
-            log.info("----------deleteTestUserByName-----------");
-            log.info("delete user success, the user is " + username);
-            return testUser;
+            int testUser = testUserMapper.deleteTestUser(username);
+            if (testUser == 1){
+                log.debug("-----------debug----------");
+                log.info("----------deleteTestUserByName-----------");
+                log.info("delete user success, the user is " + username);
+                return "delete user success, the user is " + username;
+            }
+            log.error("delete user fail");
+            return "delete user fail";
         }catch (Exception e){
             System.out.println("call method failed,error: " + e);
             log.error("call error: " + e);
@@ -197,8 +177,10 @@ public class TestUserController {
 
     // @RequestBody
     @RequestMapping(value = "addTestUser", method = RequestMethod.POST)
-    public TestUser addTestUserResponse(@RequestBody TestUser requestTestUser) {
+    public String addTestUserResponse(@RequestBody TestUser requestTestUser) {
         Integer testUserNumber = testUserMapper.countTestUser();
+
+        log.info("TestUser number: " + testUserNumber.toString());
 
         String username = requestTestUser.getUsername();
         int age = requestTestUser.getAge();
@@ -207,13 +189,18 @@ public class TestUserController {
             log.error("addUser failed: the user reach the limit");
             return null;
         }
+        log.info (String.format("useranme:%s;  age:%d", username, age));
         TestUser testUser = new TestUser();
         try{
-            testUser = testUserMapper.insertTestUser(username, age);
-            log.debug("-----------debug----------");
-            log.info("-----------addTestUserResponse----------");
-            log.info("add user success, the user is " + username);
-            return testUser;
+            int test = testUserMapper.insertTestUser(username, age);
+            if (test == 1){
+                log.debug("-----------debug----------");
+                log.info("-----------addTestUserResponse----------");
+                log.info("add user success, the user is " + username);
+                return "add user success, the user is " + username;
+            }
+            log.error("add User fail");
+            return "add User fail";
         }catch (Exception e){
             log.error("call error: " + e);
         }

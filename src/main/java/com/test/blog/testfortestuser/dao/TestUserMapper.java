@@ -14,9 +14,11 @@ public interface TestUserMapper {
     Integer insertTestUser(@Param("username")String username, @Param("age")int age);
     int deleteTestUser(String username);
     TestUser selectUserByName(String username);
+    TestUser selectUserById(int id);
     ArrayList<TestUser> findAllTestUser();
     ArrayList<TestUser> findAllTestUserByPage(@Param("startIndex")int startIndex, @Param("pageSize")int pageSize);
     ArrayList<TestUser> findAllTestUserByNameAge(String sqlData);
     Integer countTestUser();
+    int updateTestUser(@Param("id")int id, @Param("username")String username, @Param("age")int age);
 //    TestUser
 }

@@ -10,8 +10,14 @@
     <delete id = "deleteTestUser" >
         DELETE FROM test_user WHERE username = #{username}
     </delete>
+    <update id = "updateTestUser" >
+        UPDATE test_user SET username = #{username}, age = #{age} WHERE id = #{id}
+    </update>
     <select id = "selectUserByName" resultType="TestUser">
         select * from test_user where username = #{username}
+    </select>
+    <select id = "selectUserById" resultType="TestUser">
+        select * from test_user where id = #{id}
     </select>
     <select id = "findAllTestUser" resultType="TestUser">
         select * from test_user

@@ -17,7 +17,7 @@ public interface TestUserMapper {
     TestUser selectUserById(int id);
     ArrayList<TestUser> findAllTestUser();
     ArrayList<TestUser> findAllTestUserByPage(@Param("startIndex")int startIndex, @Param("pageSize")int pageSize);
-    ArrayList<TestUser> findAllTestUserByNameAge(String sqlData);
+    ArrayList<TestUser> findAllTestUserByNameAge(TestUser testUser);
     Integer countTestUser();
     int updateTestUser(@Param("id")int id, @Param("username")String username, @Param("age")int age);
 //    TestUser

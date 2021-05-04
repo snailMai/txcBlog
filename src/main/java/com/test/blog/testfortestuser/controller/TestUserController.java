@@ -41,7 +41,7 @@ public class TestUserController {
 
     // vue
     @RequestMapping(value = "/allTestUserVue", method = RequestMethod.GET)
-    public ArrayList<TestUser> getAllTestUserVue() throws  Exception{
+    public ArrayList<TestUser> getAllTestUserVue(){
         ArrayList<TestUser> listTestUser;
         try{
             listTestUser = testUserMapper.findAllTestUser();
@@ -56,7 +56,7 @@ public class TestUserController {
 
     // vue
     @RequestMapping(value = "/allTestUserVue/{page}", method = RequestMethod.GET)
-    public ArrayList<TestUser> getAllTestUserVuePage(@PathVariable Integer page) throws  Exception{
+    public ArrayList<TestUser> getAllTestUserVuePage(@PathVariable Integer page){
         //PageHelper.startPage(page, pageSize);这段代码表示，程序开始分页了，
         //page默认值是1，pageSize默认是10，意思是从第1页开始，每页显示10条记录。
 //        PageHelper.startPage(page, 5);
@@ -88,12 +88,14 @@ public class TestUserController {
 //        return null;
 //    }
 
+
     @RequestMapping(value = "{username}", method = RequestMethod.GET)
     public TestUser getTestUserByName(@PathVariable String username ) {
         int id = 0;
-        TestUser testUser = new TestUser();
+        TestUser testUser;
         try {
-            id = Integer.valueOf(username);
+            // parseInt返回int,valueOf返回Integer
+            id = Integer.parseInt(username);
         }catch(Exception e){
             log.warn("getTestUserByName is String");
         }
@@ -142,7 +144,7 @@ public class TestUserController {
     }
 
     @RequestMapping(value = "/allTestUser", method = RequestMethod.GET)
-    public ArrayList<TestUser> getAllTestUser() throws  Exception{
+    public ArrayList<TestUser> getAllTestUser(){
         ArrayList<TestUser> listTestUser;
         try{
             listTestUser = testUserMapper.findAllTestUser();
@@ -156,7 +158,7 @@ public class TestUserController {
     }
 
     @RequestMapping(value = "/number", method = RequestMethod.GET)
-    public Integer getTestUserNumber() throws  Exception{
+    public Integer getTestUserNumber() {
 
         try{
             Integer testUserNumber = testUserMapper.countTestUser();
@@ -174,30 +176,17 @@ public class TestUserController {
 
     @RequestMapping(value = "/filterTestUser", method = RequestMethod.GET)
     public ArrayList<TestUser> getAllTestUserByNameOrAge(@RequestParam(value = "age", required = false) Integer age,
-                                                         @RequestParam(value = "username", required = false, defaultValue = "") String username)  throws  Exception{
+                                                         @RequestParam(value = "username", required = false, defaultValue = "") String username) {
         ArrayList<TestUser> listTestUser;
         log.info("requestBody age:" + age);
         log.info("requestBody username" + username);
+        TestUser testUser = new TestUser();
+        testUser.setUsername(username);
+        testUser.setAge(age);
 
-        //当前方式不知道有没有 sql注入风险
-        String sqlData = "WHERE";
-        if (age != null){
-            sqlData = sqlData + " age = " + age;
-        }
-        if (username.equals("")){
-
-        }else if(age != null && !username.equals("")){
-            sqlData = sqlData + " AND username = " + "\'" + username + "\'";
-        }else {
-            sqlData = sqlData + " username = " + "\'" + username + "\'";
-        }
 
         try{
-            if (sqlData.equals("WHERE")){
-                listTestUser = testUserMapper.findAllTestUser();
-            }else {
-                listTestUser = testUserMapper.findAllTestUserByNameAge(sqlData);
-            }
+            listTestUser = testUserMapper.findAllTestUserByNameAge(testUser);
             log.debug("-----------debug----------");
             log.info("----------getAllTestUserByNameOrAge success-----------");
             return listTestUser;

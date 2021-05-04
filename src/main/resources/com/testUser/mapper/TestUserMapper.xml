@@ -27,7 +27,15 @@
     </select>
 
     <select id = "findAllTestUserByNameAge" resultType="TestUser">
-        select * from test_user ${sqlData}
+        select * from test_user
+        <where>
+            <if test="username != null and username != ''">
+                and username like "%"#{username}"%"
+            </if>
+            <if test="age != null">
+                and age=#{age}
+            </if>
+        </where>
     </select>
 
     <select id = "findAllTestUserByPage" resultType="TestUser">

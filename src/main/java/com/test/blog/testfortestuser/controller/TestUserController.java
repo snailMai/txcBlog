@@ -55,7 +55,7 @@ public class TestUserController {
     }
 
     // vue
-    @RequestMapping(value = "/allTestUserVue/{page}", method = RequestMethod.GET)
+    @RequestMapping(value = "/allTestUserVue/page/{page}", method = RequestMethod.GET)
     public ArrayList<TestUser> getAllTestUserVuePage(@PathVariable Integer page){
         //PageHelper.startPage(page, pageSize);这段代码表示，程序开始分页了，
         //page默认值是1，pageSize默认是10，意思是从第1页开始，每页显示10条记录。

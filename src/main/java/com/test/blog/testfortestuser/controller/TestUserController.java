@@ -7,8 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -72,6 +79,29 @@ public class TestUserController {
         return null;
     }
 
+//    // vue-- pom文件中的pagehelper
+//    @RequestMapping(value = "/allTestUserVue/page/{page}/1", method = RequestMethod.GET)
+//    public ArrayList<TestUser> getAllTestUserVuePages(@PathVariable Integer page){
+//        //PageHelper.startPage(page, pageSize);这段代码表示，程序开始分页了，
+//        //page默认值是1，pageSize默认是10，意思是从第1页开始，每页显示10条记录。
+////        PageHelper.startPage(page, 5);
+//        ArrayList<TestUser> listTestUser;
+//        try{
+////            listTestUser = testUserMapper.findAllTestUserByPage((page-1) * 5, 5);
+//            PageHelper.startPage(2, 10);
+//            listTestUser = testUserMapper.findAllTestUser();
+//            log.debug("-----------debug----------");
+//            log.info("----------getAllTestUser-----------");
+//            return listTestUser;
+//        }catch (Exception e){
+//            log.error("call method failed,error: " + e);
+//        }
+//        return null;
+//    }
+//
+//    public ArrayList<TestUser> findAllTestUser(){
+//        return testUserMapper.findAllTestUser();
+//    }
 
 //    @RequestMapping(value = "{id}", method = RequestMethod.GET)
 //    public TestUser getTestUserById(@PathVariable int id ) {
@@ -271,5 +301,18 @@ public class TestUserController {
         stringBuilder.append("post addTestUser,requestBody");
         log.info(stringBuilder.toString());
         return stringBuilder.toString();
+    }
+
+    @RequestMapping(value="/testStatue", method = RequestMethod.GET)
+    public void testHttpStatus(HttpServletResponse response) throws IOException{
+        response.setStatus(200);
+        response.getWriter().append("server error");
+    }
+
+    @RequestMapping(value="/testStatusTwo", method = RequestMethod.GET)
+    public ResponseEntity<Map<String, Object>> testHttpStatusTwo(HttpServletResponse response) throws IOException{
+        Map<String,Object> map = new HashMap<String,Object>();
+        map.put("name", "user");
+        return new ResponseEntity<Map<String,Object>>(map, HttpStatus.BAD_REQUEST);
     }
 }

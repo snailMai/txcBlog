@@ -6,8 +6,9 @@ import java.util.Date;
 //@AllArgsConstructor
 //@NoArgsConstructor
 //@Builder
-public class BlogUserWrap {
+public class ShowBlogUserModel {
     private Long id;
+    private String userId;
     private String userName;
     private String userPassword;
     private String phoneNumber;
@@ -20,6 +21,14 @@ public class BlogUserWrap {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getUserName() {

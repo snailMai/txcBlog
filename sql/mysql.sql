@@ -1,20 +1,23 @@
 create table if not exists blog_user(
     id bigint not null auto_increment,
-    user_name varchar(255),
-    user_password varchar(255),
-    phone_number varchar(255),
+    user_id varchar(255) NOT NULL,
+    user_name varchar(255) NOT NULL,
+    user_password varchar(255) NOT NULL,
+    phone_number varchar(255) NOT NULL,
     create_time datetime,
     update_time datetime,
-    primary key (id)
-)engine=MyISAM
+    primary key (id),
+    UNIQUE KEY(user_id)
+)engine=InnoDB DEFAULT CHARSET=utf8
 
 create table if not exists blog_user_token(
-    id bigint not null auto_increment,
-    user_name varchar(255),
+    id bigint auto_increment NOT NULL,
+    user_id varchar(255) NOT NULL,
     auth_token varchar(255),
-    create_time datetime,
+    startTimestamp int,
+    endTimestamp int,
     primary key (id)
-)engine=MyISAM
+)engine=InnoDB DEFAULT CHARSET=utf8
 
 
 

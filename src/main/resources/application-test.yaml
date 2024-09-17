@@ -1,0 +1,52 @@
+spring.datasource:
+  url: jdbc:mysql://129.226.174.57:3306/txc?userSSL=false
+  username: test
+  password: Huawei@123
+  driver-class-name: com.mysql.cj.jdbc.Driver
+  #修改hakari最大生命周期为 n * 1000 (s)
+  hakari:
+    # 第一种解法
+    max-lifetime: 30000
+    # 第二种解法新增下列方法
+    minimum-idle: 3
+    maximum-pool-size: 10
+    connection-test-query: SELECT 1
+
+mybatis:
+  #Mybatis扫描 // mysql mapper.xml 文件路径
+  mapper-locations: classpath*:com/testUser/mapper/*.xml
+  #起别名。可省略写mybatis的xml中的resultType的全路径
+  type-aliases-package: com.test.blog.testfortestuser.domain
+  #输出sql
+  configuration.log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+
+###}
+
+###{ tomcat
+server:
+  port: 8081
+#  address: 127.0.0.1
+###}
+
+###{ log
+## 该属性用来配置日志文件的路径
+#logging.file.path=D:/JAVA/workspace/realTXC/log/myLog.log
+#logging.file.path=/opt/log/testUser/myTest.log
+#
+## 以下内容为日志超过一段时间自动切分并压缩
+## 10M换一个包
+#logging.file.max-size=10MB
+## 1天换一个包
+#logging.file.max-history=1
+#
+## 该属性用于配置日志级别。
+#logging.level.root=info
+
+logging:
+  file.path: /opt/log/testUser/myTest.log
+  level.root: info
+  file.max-size: 10MB
+  file.max-history: 1
+###}
+

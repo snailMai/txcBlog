@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<table border="1" cellpadding="15" cellspacing="0" bgcolor="#7fff00">
+    <tr>
+        <td>编号</td>
+        <td>姓名</td>
+        <td>性别</td>
+        <!--        <td>年龄</td>-->
+        <!--使用Thymeleaf标签，并取出model中的数据-->
+    <tr th:each="pl:${listTestUser}" align="center">
+        <td th:text="${pl.getId()}"></td>
+        <td th:text="${pl.getUsername()}"></td>
+        <td th:text="${pl.getAge()}"></td>
+        <!--        <td th:text="${pl.getAge()}"></td>-->
+    </tr>
+</table>
+</body>
+</html>

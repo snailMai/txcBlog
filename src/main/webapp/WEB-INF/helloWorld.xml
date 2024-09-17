@@ -1,0 +1,8 @@
+<servlet>
+    <servlet-name>MyServletA</servlet-name>
+    <servlet-class>com.mmm.servlet.MyServletA</servlet-class>
+</servlet>
+<servlet-mapping>
+<servlet-name>MyServletA</servlet-name>
+<url-pattern>/a.do</url-pattern>
+</servlet-mapping>

@@ -354,3 +354,8 @@ redis list,set 和  Sort set
 1. 调整下get方法的路径顺序
 2. 调整数据库默认值
 3. 调整服务器日志位置
+
+
+## 2024-09-22 002
+1. application-blog.properties 用错配置, 更换成local
+2. 本地连接远程数据库,必须配置server,原因未知

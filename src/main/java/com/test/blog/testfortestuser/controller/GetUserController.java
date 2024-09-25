@@ -40,6 +40,19 @@ public class GetUserController {
         return stringBuilder.toString();
     }
 
+    @RequestMapping(value = "/number", method = RequestMethod.GET)
+    public Integer getTestUserNumber() {
+        try{
+            Integer testUserNumber = testUserMapper.countTestUser();
+            log.debug("-----------debug----------");
+            log.info("----------getTestUserNumber-----------");
+            return testUserNumber;
+        }catch (Exception e){
+            log.error("call error: " + e);
+        }
+        return null;
+    }
+
     @RequestMapping(value = "/allTestUser", method = RequestMethod.GET)
     public ArrayList<TestUser> getAllTestUser(){
         ArrayList<TestUser> listTestUser;
@@ -139,20 +152,6 @@ public class GetUserController {
                 System.out.println("call method failed,error: " + e);
                 log.error("call error: " + e);
             }
-        }
-        return null;
-    }
-
-    @RequestMapping(value = "/number", method = RequestMethod.GET)
-    public Integer getTestUserNumber() {
-
-        try{
-            Integer testUserNumber = testUserMapper.countTestUser();
-            log.debug("-----------debug----------");
-            log.info("----------getTestUserNumber-----------");
-            return testUserNumber;
-        }catch (Exception e){
-            log.error("call error: " + e);
         }
         return null;
     }

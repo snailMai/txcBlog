@@ -15,6 +15,7 @@ class TestUserMapperTest {
 
     @Test
     void findAllTestUser(){
+        System.out.println("------------ findAllTestUser start ------------ ");
         System.out.println(testUserMapper.findAllTestUser());
     }
 

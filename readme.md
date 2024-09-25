@@ -10,6 +10,13 @@
    3. spring.datasource.password
 3. 注意不要不要将以上内容上传到git
 
+## 前端
+1. 
+
+# 打包
+第一次打包, 可看package.md
+## 后端
+1. 打包命令mvn package -Dmaven.test.skip=true
 
 
 # 问题记录

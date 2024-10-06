@@ -28,6 +28,7 @@ public class GetUserController {
     @RequestMapping(value = "/all", method = RequestMethod.GET)
     public String getAllInterface(){
         StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("----------------testuser-------------\n");
         stringBuilder.append("get pic,test \n");
         stringBuilder.append("post {username}_{age},{username}_{age} \n");
         stringBuilder.append("get {username},username \n");
@@ -35,7 +36,11 @@ public class GetUserController {
         stringBuilder.append("get allTestUser,null \n");
         stringBuilder.append("get number,null \n");
         stringBuilder.append("get filterTestUser,requestParam \n");
-        stringBuilder.append("post addTestUser,requestBody");
+        stringBuilder.append("post addTestUser,requestBody\n");
+        stringBuilder.append("----------------Tools-------------\n");
+        stringBuilder.append("-----post-----\n");
+        stringBuilder.append("enc/dec, encryption/decryption\n");
+        stringBuilder.append("getRandomPwd, tools/get/randompwd\n");
         log.info(stringBuilder.toString());
         return stringBuilder.toString();
     }

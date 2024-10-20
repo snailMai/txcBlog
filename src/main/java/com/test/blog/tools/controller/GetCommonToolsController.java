@@ -16,14 +16,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class GetCommonToolsController {
     private static final Logger log = LoggerFactory.getLogger(GetCommonToolsController.class);
     @RequestMapping(value = "/randompwd", method = RequestMethod.GET)
-    public String getRandomPassword(@RequestParam(value = "num", required = false, defaultValue = "0") int num){
+    public String getRandomPassword(@RequestParam(value = "num", required = false, defaultValue = "0") int num,
+                                    @RequestParam(value = "quantity", required = false, defaultValue = "1") int quantity){
         log.info("/randompwd");
         log.info("num is : " + num);
-        if (num == 0){
-            return PasswordUtilds.randomPassword();
-        }else {
-            return PasswordUtilds.randomPW(num);
+        log.info("quantity is : " + quantity);
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < quantity; i++) {
+            if (num == 0){
+                result.append(PasswordUtilds.randomPassword());
+            }else {
+                result.append(PasswordUtilds.randomPW(num));
+            }
+            result.append("\n");
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                log.info(e.toString());
+                e.printStackTrace();
+            }
         }
+
+
+        return result.toString();
     }
 
 

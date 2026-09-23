@@ -7,10 +7,6 @@ pipeline {
         timeout(time: 20, unit: 'MINUTES')
     }
 
-    triggers {
-        pollSCM('H/5 * * * *')
-    }
-
     stages {
         stage('Environment') {
             steps {

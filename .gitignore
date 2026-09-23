@@ -1,4 +1,10 @@
 HELP.md
+legacy/database/config/
+dist-no-db/
+dist-refactor/
+/legacy/
+/myLog/
+/myBlog-startup.*.log
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

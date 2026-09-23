@@ -1,0 +1,104 @@
+[
+  {
+    "id": "ascii-key",
+    "key": "fixture-key",
+    "plaintext": "hello 123!",
+    "ciphertext": "TlGRwub9ItGLNEJcv3KiHA=="
+  },
+  {
+    "id": "unicode-key",
+    "key": "合成测试密钥",
+    "plaintext": "旧版兼容：hello 123！",
+    "ciphertext": "jS0jfl+Ax7ezju0HiAQRrJPQuSRG471jcN9IpZ3OIHtiixS/LwAltwnRfXkN2/Fw"
+  },
+  {
+    "id": "empty-plaintext",
+    "key": "fixture-key",
+    "plaintext": "",
+    "ciphertext": "trs4hDs6hyEc9+oSw9ffhA=="
+  },
+  {
+    "id": "unicode-empty",
+    "key": "合成测试密钥",
+    "plaintext": "",
+    "ciphertext": "hSNxSy74IbzLzpuDrc6m1A=="
+  },
+  {
+    "id": "emoji",
+    "key": "emoji-key-🔑",
+    "plaintext": "中文🙂🚀\n第二行\r\n第三行\t",
+    "ciphertext": "KNTErhRVFtpU5KvHmFM3j7JfbGmQ2xgYiYfAHTpB0lYr/5LLcOK+uxgXCw9gv7pd"
+  },
+  {
+    "id": "whitespace",
+    "key": "  synthetic key  ",
+    "plaintext": "  text with spaces  \n",
+    "ciphertext": "cpRw2LcdaAB4rMpqp0QnKtsuQx8sFV2BC0e+X5XDA8I="
+  },
+  {
+    "id": "long-integer",
+    "key": "fixture-key",
+    "plaintext": "12345678901234567890",
+    "ciphertext": "IwzeaWfXltw+xJolPKGLdwmpeUBHQQOSK8Ydyhuci20="
+  },
+  {
+    "id": "quoted-string",
+    "key": "fixture-key",
+    "plaintext": "\"hello\"",
+    "ciphertext": "hre3Vn+KD0G/3V5izT94Ow=="
+  },
+  {
+    "id": "null-text",
+    "key": "fixture-key",
+    "plaintext": "null",
+    "ciphertext": "M6dksSFxEh+ugaiHyqa8ng=="
+  },
+  {
+    "id": "json-text",
+    "key": "fixture-key",
+    "plaintext": "{\"test\":1,\"中文\":\"🙂\"}",
+    "ciphertext": "WuN1/uQNdahYm09sulE0FMur2O5pDHdBN/GQuYgIFhc="
+  },
+  {
+    "id": "padding-before",
+    "key": "fixture-key",
+    "plaintext": "aaaaaaaaaa",
+    "ciphertext": "NVuIIah97Sfz/WzR4s7Nbg=="
+  },
+  {
+    "id": "padding-after",
+    "key": "fixture-key",
+    "plaintext": "aaaaaaaaaaa",
+    "ciphertext": "lTSsx/Az/kmfzQPNR6cHB0pxcaxLOGZ6GQ7aPbTKM/U="
+  },
+  {
+    "id": "wrap-before",
+    "key": "fixture-key",
+    "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ciphertext": "Dy9IXOXmUQ/7qzpnWajtFxbGseFnbb7lFQKZ2JMr0sToBR5zT4WIyZRLtcSUUd66"
+  },
+  {
+    "id": "wrap-after",
+    "key": "fixture-key",
+    "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ciphertext": "CdhtDPZYZMyxen1ItchOwRbGseFnbb7lFQKZ2JMr0sQWxrHhZ22+5RUCmdiTK9LESnFxrEs4ZnoZ\nDto9tMoz9Q=="
+  },
+  {
+    "id": "terminal-line-before",
+    "key": "合成测试密钥",
+    "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ciphertext": "AWrxpM9yQIUdmfIicShhrNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhB\nNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCK\nodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSP\nli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHW\naM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5Yv\ngiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP\n9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4Ih\nUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/So\nQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQ\niqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0\nj5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh\n1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+W\nL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZo\nz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+C\nIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0\nqEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUMOidi02f0ztLLLiVRW3HVE="
+  },
+  {
+    "id": "terminal-line-exact",
+    "key": "合成测试密钥",
+    "plaintext": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ciphertext": "J00D9Y/N7kfbJs2CWV6stdCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhB\nNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCK\nodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSP\nli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHW\naM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5Yv\ngiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP\n9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4Ih\nUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/So\nQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQ\niqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0\nj5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh\n1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+W\nL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZo\nz/SoQTSPli+CIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+C\nIVDQiqHWaM/0qEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVDQiqHWaM/0\nqEE0j5YvgiFQ0Iqh1mjP9KhBNI+WL4IhUNCKodZoz/SoQTSPli+CIVBiixS/LwAltwnRfXkN2/Fw\n"
+  },
+  {
+    "id": "long-unicode",
+    "key": "合成测试密钥",
+    "plaintext": "长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n长文本🙂，保持原样。\n",
+    "ciphertext": "xDB1oCklDEOJ4spW/3gKO7z0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJ\nWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0\nj1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/\nkqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5C\nKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk\n8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5tt\nHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+W\nZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2\nD9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv\n5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqgla\nCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSP\nX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+S\nqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIo\ndWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2Ty\neDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20d\nqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5Zl\nvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP\n23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/l\nXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJ\ng2TyeDhv5V5CKHViNg/bf5KrL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9f\nm20dqglaCYNk8ng4b+VeQih1YjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDhv5V5CKHViNg/bf5Kr\nL5ZlvPSPX5ttHaoJWgmDZPJ4OG/lXkIodWI2D9t/kqsvlmW89I9fm20dqglaCYNk8ng4b+VeQih1\nYjYP23+Sqy+WZbz0j1+bbR2qCVoJg2TyeDijkpmD1tMaucMnSD11Oa78"
+  }
+]

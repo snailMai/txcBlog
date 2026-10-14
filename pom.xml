@@ -11,12 +11,14 @@
     <groupId>com.test</groupId>
     <artifactId>blog</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <!-- 保留可执行 WAR 交付形式，本机由独立 Java 21 运行。 -->
     <packaging>war</packaging>
     <name>personWeb tools</name>
     <description>Database-free encryption and password tools</description>
     <properties>
         <java.version>21</java.version>
     </properties>
+    <!-- 仅声明 Web、健康检查与测试依赖，不恢复数据库或远程配置依赖。 -->
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -26,6 +28,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- provided 兼顾外部容器；Boot 重打包仍保留 java -jar 所需的容器依赖。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-tomcat</artifactId>
@@ -37,6 +40,7 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <!-- 稳定产物名供部署脚本引用，Boot 插件生成可直接启动的归档。 -->
     <build>
         <finalName>myBlog</finalName>
         <plugins>

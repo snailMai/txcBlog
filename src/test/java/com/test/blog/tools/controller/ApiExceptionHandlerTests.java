@@ -7,6 +7,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/** 捕获异常处理输出，验证合成敏感异常消息不会进入日志或错误响应。 */
 @ExtendWith(OutputCaptureExtension.class)
 class ApiExceptionHandlerTests {
     @Test

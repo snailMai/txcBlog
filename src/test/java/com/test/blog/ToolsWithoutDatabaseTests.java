@@ -23,6 +23,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/** 通过随机端口上的真实 HTTP 请求验证接口契约；所有输入均为合成测试数据。 */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ToolsWithoutDatabaseTests {
     private static final String INVALID_MESSAGE = "请求参数无效，请检查后重试。";
@@ -33,6 +34,7 @@ class ToolsWithoutDatabaseTests {
     @Autowired ApplicationContext context;
     @Autowired JsonMapper json;
 
+    // 不仅检查无数据源 Bean，还检查已退役依赖未被重新引入运行类路径。
     @Test
     void startsWithoutDatabaseOrRetiredDependencies() {
         assertTrue(context.getBeansOfType(DataSource.class).isEmpty());
@@ -44,6 +46,7 @@ class ToolsWithoutDatabaseTests {
         }
     }
 
+    // 多字节密钥和两种正文分别验证，避免只校验字符数量或只覆盖一个接口。
     @Test
     void oversizedFieldsReturnSafe413() throws Exception {
         for (String path : new String[]{"/tools/encryption", "/tools/decryption"}) {
@@ -58,7 +61,7 @@ class ToolsWithoutDatabaseTests {
         String valid = "{\"key\":\"key\",\"pwd\":\"text\"}";
         for (boolean chunked : new boolean[]{false, true}) {
             for (int offset : new int[]{-1, 0, 1}) {
-                // Valid JSON followed by whitespace ensures ignored trailing bytes cannot bypass the limit.
+                // 合法 JSON 后追加空白，验证解析器忽略的尾随字节仍计入正文额度。
                 byte[] body = (valid + " ".repeat(ToolsRequestSizeFilter.MAX_BODY_BYTES + offset - valid.length()))
                         .getBytes(StandardCharsets.UTF_8);
                 var publisher = chunked ? HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(body))
@@ -72,9 +75,11 @@ class ToolsWithoutDatabaseTests {
                 else assertTextResponse(response);
             }
         }
+        // 矩阵参数路径也必须进入大小过滤器，不能绕过上限。
         assertTooLarge(request("POST", "/tools;matrix=1/encryption", valid + " ".repeat(ToolsRequestSizeFilter.MAX_BODY_BYTES)));
     }
 
+    // 空字符的 JSON 转义会放大正文，最大合法字段仍需支持加密及 CRLF 解密往返。
     @Test
     void maximumEscapedJsonAndCiphertextRoundTrip() throws Exception {
         String key = "\u0000".repeat(1024);
@@ -86,6 +91,7 @@ class ToolsWithoutDatabaseTests {
         assertEquals(plain, decrypted.body());
     }
 
+    // 固定两个错误字段，防止响应中混入原始输入或额外诊断信息。
     private void assertTooLarge(HttpResponse<String> response) {
         assertEquals(413, response.statusCode());
         assertEquals("no-store", response.headers().firstValue("Cache-Control").orElseThrow());
@@ -96,6 +102,7 @@ class ToolsWithoutDatabaseTests {
         assertEquals("输入过大，请缩短密钥或文本后重试。", error.get("message").asString());
     }
 
+    // 检查实际连接器，而不只核对配置文本，确认容器已采用容量限制。
     @Test
     void preservesConfiguredTomcatCapacity() {
         var server = (TomcatWebServer) ((ServletWebServerApplicationContext) context).getWebServer();
@@ -105,6 +112,7 @@ class ToolsWithoutDatabaseTests {
         assertEquals("200", String.valueOf(connector.getProperty("maxConnections")));
     }
 
+    // 覆盖原用户模块各类 HTTP 方法，确保退役接口不再注册。
     @Test
     void databaseRoutesAreRetired() throws Exception {
         for (String path : new String[]{"/testuser/number", "/testuser/allTestUser",
@@ -118,6 +126,7 @@ class ToolsWithoutDatabaseTests {
         assertEquals(404, request("POST", "/bbs/user", "{}").statusCode());
     }
 
+    // 特意包含看似 JSON 的文本及长数字，不能被转换类型、裁剪或丢失精度。
     @Test
     void encryptionPreservesExactTextAndDoesNotCache() throws Exception {
         for (String plain : new String[]{"", "回归测试：hello 123！🔐", "123456789012345678901234567890",
@@ -133,13 +142,14 @@ class ToolsWithoutDatabaseTests {
 
     @Test
     void decryptsFixtureFromOriginalImplementation() throws Exception {
-        // Synthetic fixture produced by the original Java 8 implementation before this refactor.
+        // 由重构前的 Java 8 实现生成的合成样本，避免仅用新实现自测往返。
         String fixture = "15F7PaVh2GRYdbvNLyLVHcMZVWyQHmnCA9FG48trWHtKcXGsSzhmehkO2j20yjP1";
         HttpResponse<String> response = post("/tools/decryption", "fixture-key", fixture);
         assertTextResponse(response);
         assertEquals("旧版兼容：hello 123！", response.body());
     }
 
+    // 区分缺失、null 和错误类型，数字／布尔值不得被隐式转换为字符串。
     @Test
     void invalidJsonAndStringFieldsReturnSafeErrors() throws Exception {
         for (String body : new String[]{"", "null", "{}", "[]", "{",
@@ -155,6 +165,7 @@ class ToolsWithoutDatabaseTests {
         }
     }
 
+    // 只验证可检测的失败；旧 ECB 协议不能据此宣称具备完整篡改认证。
     @Test
     void detectableDecryptionFailuresReturnSafeErrors() throws Exception {
         String encrypted = post("/tools/encryption", "correct-key", "private synthetic input").body();
@@ -168,6 +179,7 @@ class ToolsWithoutDatabaseTests {
                 "DECRYPTION_FAILED", DECRYPTION_MESSAGE);
     }
 
+    // 覆盖缺省、长度和数量边界、非法数字，以及批量结果最后一个 LF。
     @Test
     void randomPasswordDefaultsAndBoundaries() throws Exception {
         for (String query : new String[]{"", "?num=0", "?num=0&quantity=1"}) {
@@ -199,6 +211,7 @@ class ToolsWithoutDatabaseTests {
         return request("POST", path, json.writeValueAsString(Map.of("key", key, "pwd", plain)));
     }
 
+    // 所有请求只指向测试随机端口，不调用已部署服务。
     private HttpResponse<String> request(String method, String path, String body) throws Exception {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
                 .timeout(Duration.ofSeconds(10));

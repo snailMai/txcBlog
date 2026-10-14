@@ -18,6 +18,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/** 在 JSON 解析前限制实际请求体大小，防止超大正文先被完整反序列化。 */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class ToolsRequestSizeFilter extends OncePerRequestFilter {
@@ -25,6 +26,7 @@ public class ToolsRequestSizeFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        // 去掉矩阵参数再匹配，避免 /tools;参数/... 绕过工具路径检查。
         String path = request.getServletPath().replaceAll(";[^/]*", "");
         return !path.equals("/tools") && !path.startsWith("/tools/");
     }
@@ -36,7 +38,7 @@ public class ToolsRequestSizeFilter extends OncePerRequestFilter {
             reject(response);
             return;
         }
-        // Bound the entire body before JSON parsing, including chunked bodies and ignored trailing data.
+        // 多读一个字节判定超限，兼顾未知长度的分块请求和 JSON 后的尾随空白。
         byte[] body = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
         if (body.length > MAX_BODY_BYTES) {
             reject(response);
@@ -45,6 +47,7 @@ public class ToolsRequestSizeFilter extends OncePerRequestFilter {
         chain.doFilter(new BoundedRequest(request, body), response);
     }
 
+    /** 过滤器位于 Controller 之外，必须自行返回安全的 413 和缓存头。 */
     private void reject(HttpServletResponse response) throws IOException {
         response.setStatus(413);
         response.setHeader("Cache-Control", "no-store");
@@ -53,6 +56,7 @@ public class ToolsRequestSizeFilter extends OncePerRequestFilter {
         response.getWriter().write("{\"code\":\"INPUT_TOO_LARGE\",\"message\":\"输入过大，请缩短密钥或文本后重试。\"}");
     }
 
+    /** 原始流已被消耗，下游从已限长的内存副本读取；该副本不得写入日志。 */
     private static final class BoundedRequest extends HttpServletRequestWrapper {
         private final ServletInputStream input;
 
@@ -66,6 +70,7 @@ public class ToolsRequestSizeFilter extends OncePerRequestFilter {
                 }
                 @Override public boolean isFinished() { return bytes.available() == 0; }
                 @Override public boolean isReady() { return true; }
+                // 当前接口同步消费正文，不伪装成支持 Servlet 异步读取。
                 @Override public void setReadListener(ReadListener listener) {
                     throw new IllegalStateException("Tool endpoints use synchronous request bodies");
                 }

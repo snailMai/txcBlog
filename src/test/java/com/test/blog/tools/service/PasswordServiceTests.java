@@ -4,11 +4,13 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/** 验证输出格式与边界，不依赖随机结果恰好出现某个字符，以免测试不稳定。 */
 class PasswordServiceTests {
     private final PasswordService service = new PasswordService();
 
     @Test
     void defaultPasswordsKeepAlternatingCharactersAndFinalNewline() {
+        // 保留 split 的末尾空项，才能断言最后一条密码仍以 LF 结束。
         String[] lines = service.generate(0, 100).split("\n", -1);
         assertEquals(101, lines.length);
         assertEquals("", lines[100]);

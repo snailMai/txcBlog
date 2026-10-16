@@ -17,10 +17,10 @@ java -jar target/myBlog.war
 
 ```bash
 bash ./mvnw -f todoist/pom.xml verify
-java -jar todoist/target/todoist.jar --todoist.codex-path=/absolute/path/to/codex --todoist.workspace=/absolute/path/to/workspace
+java -jar todoist/target/todoist.jar
 ```
 
-默认监听 `127.0.0.1:8091`，不改变工具 WAR。两个路径须为本机实际绝对路径，使用已有 Codex 登录；缺省留空，不启动模型或接触任务文件。该模块恢复源码中固定的原 AI Todoist 会话，不创建替代会话，不解析或直接写入待办 Markdown，也不追加 prompt。恢复使用 `workspace-write`／`never` 参数，可能影响原会话后续默认值，不修改全局 Codex 配置。
+默认监听 `127.0.0.1:8091`，不改变工具 WAR。通过本人桌面应用已有的 `~/.codex/ipc/ipc.sock` 发现固定原 AI Todoist 会话持有者，再经该持有者发送前端原文，不启动独立 Codex 进程、不调用 thread/resume、不创建替代会话。需要自定义路径时使用 `--todoist.desktop-socket=/absolute/path/to/ipc.sock`；旧 codex-path／workspace 参数不再使用，不要求修改现有启动项。模块不解析或直接写入待办 Markdown，不追加 prompt，也不覆盖会话目录、权限、审批或模型设置。
 
 前端见 [snailMai/vueDemo](https://github.com/snailMai/vueDemo) 。同源代理须将 `/api/todoist/` 转发到本模块并去掉 `/api` 前缀，其余 `/api/` 转发到原工具接口。接口如下：
 
@@ -31,6 +31,10 @@ java -jar todoist/target/todoist.jar --todoist.codex-path=/absolute/path/to/code
 页面组合添加、完成、修改、删除任务命令；输出全部待办只发送该命令文本。后端只校验传输格式，不实现业务命令限制、网站登录、每日限额或跨客户端协调。对公网开放后其他人也可能调用，不应宣称具备访问控制。
 
 请求状态仅保存在内存，完成结果一小时后可清理。未知结果不应自动重发；服务重启或结果过期后需在原会话核对。任务输入、输出、工具正文及凭证不得写入运行日志，原会话正常历史仍会保存请求。单元测试使用模拟协议和合成数据，不操作真实待办。
+
+转发每次连接、订阅目标会话并提交一次原文，通过返回的轮次 ID 匹配最终结果。只有轮次已完成才返回文本，随后取消本次订阅并关闭 socket，不中断桌面会话或其他连接；不会因为已出现部分文字就提前结束。初始化与持有者发现失败是明确未发送，提交后异常仍返回 `RESULT_UNKNOWN`，不自动重发。所有错误仅使用安全固定码，不回显协议原文。
+
+IPC 是当前桌面版本的内部协议，桌面应用须运行且原会话已有可发现的持有者，升级后可能需要适配；版本／状态序列不匹配时明确失败，不自动切换到抢占连接、改全局配置或创建新会话。测试在独立合成 Unix socket 上模拟五种命令、状态更新、失败及连接释放，绝不向真实 AI Todoist 发测试消息。网站不管理会话规则、不检查任务文件或同步状态，只负责转发和显示。
 
 ## 持续集成
 

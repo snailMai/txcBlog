@@ -41,7 +41,7 @@ final class TodoistHttpService extends OncePerRequestFilter {
             JsonNode body;
             try { body = json.readTree(bytes); } catch (Exception ignored) { throw new Failure("INVALID_REQUEST"); }
             Failure.require(body != null && body.isObject() && body.size() == 2 && body.path("input").isTextual() && body.path("requestId").isTextual(), "INVALID_REQUEST");
-            String input = body.path("input").asText().strip();
+            String input = body.path("input").asText();
             Failure.require(!input.isBlank(), "INVALID_REQUEST");
             Failure.require(input.getBytes(StandardCharsets.UTF_8).length <= 16384, "INPUT_TOO_LARGE");
             UUID requestId = id(body.path("requestId").asText());
@@ -64,13 +64,10 @@ final class TodoistHttpService extends OncePerRequestFilter {
     }
     private synchronized void configure() {
         if (relay != null) return;
-        Path binary = path("todoist.codex-path"), workspace = path("todoist.workspace");
-        Failure.require(Files.isExecutable(binary) && Files.isDirectory(workspace), "NOT_CONNECTED");
-        relay = new RelayRequests(new AppServerRelay(binary, workspace));
-    }
-    private Path path(String key) {
-        String value = environment.getProperty(key, ""); Failure.require(!value.isBlank(), "NOT_CONNECTED");
-        Path path = Path.of(value); Failure.require(path.isAbsolute(), "NOT_CONNECTED"); return path;
+        String value = environment.getProperty("todoist.desktop-socket", "");
+        Path path = value.isBlank() ? Path.of(System.getProperty("user.home"), ".codex", "ipc", "ipc.sock") : Path.of(value);
+        Failure.require(path.isAbsolute() && Files.exists(path), "NOT_CONNECTED");
+        relay = new RelayRequests(new AppServerRelay(path));
     }
     private void write(HttpServletResponse response, int status, Map<String, String> body) throws IOException {
         response.setStatus(status); response.setContentType("application/json"); response.setCharacterEncoding("UTF-8");

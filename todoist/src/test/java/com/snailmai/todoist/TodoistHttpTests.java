@@ -64,7 +64,7 @@ class TodoistHttpTests {
         }
     }
     @Test void configurationMissingAndUnknownRoutesAreSafe() throws Exception {
-        var service = new TodoistHttpService(new MockEnvironment());
+        var service = new TodoistHttpService(new MockEnvironment().withProperty("todoist.desktop-socket", "/synthetic/missing-socket"));
         var response = request(service, "POST", "/todoist/commands", body(UUID.randomUUID(), "输出全部待办"), null);
         assertEquals(503, response.getStatus()); assertTrue(response.getContentAsString().contains("NOT_CONNECTED"));
         assertEquals(404, request(service, "GET", "/todoist/auth", null, null).getStatus());
@@ -75,6 +75,30 @@ class TodoistHttpTests {
             var result = await(relay, id);
             assertEquals("failed", result.get("status")); assertEquals("RESULT_UNKNOWN", result.get("code"));
             assertFalse(result.toString().contains("synthetic-private-value"));
+        }
+    }
+    @Test void writerRefusalRemainsACompletedFailureRecordForTheSameRequest() throws Exception {
+        var calls = new AtomicInteger();
+        try (var relay = new RelayRequests(input -> { calls.incrementAndGet(); throw new Failure("SESSION_IN_USE"); })) {
+            var service = new TodoistHttpService(new MockEnvironment(), relay);
+            UUID id = UUID.randomUUID();
+            request(service, "POST", "/todoist/commands", body(id, "完成任务：合成任务"), null);
+            assertEquals("SESSION_IN_USE", await(relay, id).get("code"));
+            var result = json.readTree(request(service, "GET", "/todoist/commands", null, id).getContentAsString());
+            assertEquals(id.toString(), result.path("requestId").asText());
+            assertEquals("failed", result.path("status").asText());
+            assertEquals("SESSION_IN_USE", result.path("code").asText());
+            assertFalse(result.toString().contains("合成任务"));
+            assertEquals(1, calls.get());
+        }
+    }
+    @Test void httpForwardsCompleteInputWithoutTrimmingOrAddingInstructions() throws Exception {
+        String input = "修改任务：  合成文本\n保留空格与换行  \n";
+        try (var relay = new RelayRequests(received -> { assertEquals(input, received); return "原样回复\n"; })) {
+            UUID id = UUID.randomUUID();
+            var service = new TodoistHttpService(new MockEnvironment(), relay);
+            assertEquals(202, request(service, "POST", "/todoist/commands", body(id, input), null).getStatus());
+            assertEquals("原样回复\n", await(relay, id).get("output"));
         }
     }
     static Map<String, String> await(RelayRequests relay, UUID id) throws Exception {

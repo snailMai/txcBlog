@@ -30,6 +30,10 @@ final class TodoistHttpService extends OncePerRequestFilter {
             if (request.getRequestURI().equals("/todoist/health") && request.getMethod().equals("GET")) {
                 configure(); write(response, 200, Map.of("status", "ready")); return;
             }
+            // 只读任务文件接口：每次请求重新读取解析，只用于列表展示，不写文件。
+            if (request.getRequestURI().equals("/todoist/tasks") && request.getMethod().equals("GET")) {
+                writeTasks(response, TaskFile.read(taskFile())); return;
+            }
             Failure.require(request.getRequestURI().equals("/todoist/commands"), "NOT_FOUND");
             if (request.getMethod().equals("GET")) {
                 configure(); write(response, 200, relay.get(id(request.getParameter("requestId")))); return;
@@ -50,7 +54,7 @@ final class TodoistHttpService extends OncePerRequestFilter {
             int status = switch (failure.code) {
                 case "NOT_FOUND", "RESULT_NOT_FOUND" -> 404;
                 case "INPUT_TOO_LARGE" -> 413;
-                case "NOT_CONNECTED" -> 503;
+                case "NOT_CONNECTED", "TASKS_UNAVAILABLE" -> 503;
                 case "REQUEST_MISMATCH" -> 409;
                 default -> 400;
             };
@@ -68,6 +72,16 @@ final class TodoistHttpService extends OncePerRequestFilter {
         Path path = value.isBlank() ? Path.of(System.getProperty("user.home"), ".codex", "ipc", "ipc.sock") : Path.of(value);
         Failure.require(path.isAbsolute() && Files.exists(path), "NOT_CONNECTED");
         relay = new RelayRequests(new AppServerRelay(path));
+    }
+    private Path taskFile() {
+        // 任务文件路径只来自后端配置，不在业务逻辑中硬编码，也不接受请求指定。
+        String value = environment.getProperty("todoist.task-file", "");
+        Failure.require(!value.isBlank(), "TASKS_UNAVAILABLE");
+        return Path.of(value);
+    }
+    private void writeTasks(HttpServletResponse response, List<Map<String, Object>> tasks) throws IOException {
+        response.setStatus(200); response.setContentType("application/json"); response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(json.writeValueAsString(Map.of("tasks", tasks)));
     }
     private void write(HttpServletResponse response, int status, Map<String, String> body) throws IOException {
         response.setStatus(status); response.setContentType("application/json"); response.setCharacterEncoding("UTF-8");

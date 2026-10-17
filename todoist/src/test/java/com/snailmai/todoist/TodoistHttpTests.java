@@ -25,13 +25,55 @@ class TodoistHttpTests {
         try (var relay = new RelayRequests(input -> { calls.incrementAndGet(); return release.get(); })) {
             var service = new TodoistHttpService(new MockEnvironment(), relay); UUID id = UUID.randomUUID();
             var post = request(service, "POST", "/todoist/commands", body(id, "请添加一个合成任务"), null);
-            assertEquals(202, post.getStatus()); assertEquals("running", json.readTree(post.getContentAsString()).path("status").asText());
+            assertEquals(202, post.getStatus());
+            // 队列化后提交即返回，状态为排队中或执行中。
+            assertTrue(Set.of("queued", "running").contains(json.readTree(post.getContentAsString()).path("status").asText()));
             release.complete("主人，已完成合成操作。");
             Map<String, String> result = await(relay, id);
             assertEquals("completed", result.get("status")); assertEquals("主人，已完成合成操作。", result.get("output"));
             assertEquals(200, request(service, "GET", "/todoist/commands", null, id).getStatus());
             relay.submit(id, "请添加一个合成任务"); assertEquals(1, calls.get());
             assertEquals("no-store", post.getHeader("Cache-Control")); assertNull(post.getHeader("WWW-Authenticate"));
+        }
+    }
+    @Test void queueRunsCommandsOneAtATimeAndFailureDoesNotBlockLaterCommands() throws Exception {
+        var release = new CompletableFuture<String>();
+        var running = new AtomicInteger(); var maxConcurrent = new AtomicInteger(); var started = new ArrayDeque<String>();
+        try (var relay = new RelayRequests(input -> {
+            int now = running.incrementAndGet(); maxConcurrent.accumulateAndGet(now, Math::max);
+            synchronized (started) { started.add(input); }
+            try {
+                if (input.contains("阻塞")) return release.get();
+                if (input.contains("失败")) throw new Failure("REQUEST_REJECTED");
+                return "done:" + input;
+            } finally { running.decrementAndGet(); }
+        })) {
+            UUID first = UUID.randomUUID(), second = UUID.randomUUID(), third = UUID.randomUUID();
+            relay.submit(first, "合成阻塞命令");
+            relay.submit(second, "合成失败命令");
+            relay.submit(third, "合成后续命令");
+            // 前一条未完成时，后续命令保持排队，不会并发进入会话。
+            for (int i = 0; i < 200 && relay.get(third).get("status").equals("queued"); i++) Thread.sleep(5);
+            assertEquals("queued", relay.get(second).get("status"));
+            synchronized (started) { assertEquals(1, started.size()); }
+            release.complete("主人，已完成。");
+            assertEquals("completed", await(relay, first).get("status"));
+            Map<String, String> failed = await(relay, second);
+            assertEquals("failed", failed.get("status")); assertEquals("REQUEST_REJECTED", failed.get("code"));
+            assertEquals("done:合成后续命令", await(relay, third).get("output"));
+            assertEquals(1, maxConcurrent.get());
+        }
+    }
+    @Test void uncertainFailureIsReportedAsUnknownStatus() throws Exception {
+        try (var relay = new RelayRequests(input -> { throw new RuntimeException("synthetic-private-value"); })) {
+            UUID id = UUID.randomUUID(); relay.submit(id, "合成输入");
+            var result = await(relay, id);
+            assertEquals("unknown", result.get("status")); assertEquals("RESULT_UNKNOWN", result.get("code"));
+            assertFalse(result.toString().contains("synthetic-private-value"));
+        }
+        try (var relay = new RelayRequests(input -> { throw new Failure("NEEDS_ATTENTION"); })) {
+            UUID id = UUID.randomUUID(); relay.submit(id, "合成输入");
+            assertEquals("unknown", await(relay, id).get("status"));
         }
     }
     @Test void missingResultDoesNotResubmitAndChangedInputCannotReuseId() throws Exception {
@@ -73,7 +115,7 @@ class TodoistHttpTests {
         try (var relay = new RelayRequests(input -> { throw new RuntimeException("synthetic-private-value"); })) {
             UUID id = UUID.randomUUID(); relay.submit(id, "合成输入");
             var result = await(relay, id);
-            assertEquals("failed", result.get("status")); assertEquals("RESULT_UNKNOWN", result.get("code"));
+            assertEquals("unknown", result.get("status")); assertEquals("RESULT_UNKNOWN", result.get("code"));
             assertFalse(result.toString().contains("synthetic-private-value"));
         }
     }
@@ -103,7 +145,10 @@ class TodoistHttpTests {
     }
     static Map<String, String> await(RelayRequests relay, UUID id) throws Exception {
         for (int i = 0; i < 200; i++) {
-            var result = relay.get(id); if (!result.get("status").equals("running")) return result; Thread.sleep(5);
+            var result = relay.get(id);
+            String status = result.get("status");
+            if (!status.equals("running") && !status.equals("queued")) return result;
+            Thread.sleep(5);
         }
         fail("Timed out waiting for synthetic runner"); return Map.of();
     }

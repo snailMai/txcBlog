@@ -19,7 +19,18 @@ class TodoistHttpTests {
         if (id != null) request.setParameter("requestId", id.toString());
         var response = new MockHttpServletResponse(); service.doFilter(request, response, new MockFilterChain()); return response;
     }
-    String body(UUID id, String input) { return json.writeValueAsString(Map.of("input", input, "requestId", id.toString())); }
+    String body(UUID id, String input) { return json.writeValueAsString(Map.of("operation", "add", "fields", Map.of("name", input, "goal", "合成目标", "criteria", "合成标准"), "requestId", id.toString())); }
+    @Test void periodicOperationIsPrivateAndSchedulerIsDisabledByDefault() throws Exception {
+        var calls = new AtomicInteger();
+        try (var relay = new RelayRequests(input -> { calls.incrementAndGet(); return "不应执行"; })) {
+            var service = new TodoistHttpService(new MockEnvironment(), relay);
+            service.startRecurring(); assertEquals(0, calls.get());
+            var body = json.writeValueAsString(Map.of("requestId", UUID.randomUUID().toString(), "operation", "recurring"));
+            var response = request(service, "POST", "/todoist/commands", body, null);
+            assertEquals(400, response.getStatus()); assertTrue(response.getContentAsString().contains("INVALID_REQUEST")); assertEquals(0, calls.get());
+            service.close();
+        }
+    }
     @Test void postReturnsImmediatelyAndGetOnlyRetrievesReplyWithoutAuthentication() throws Exception {
         var release = new CompletableFuture<String>(); var calls = new AtomicInteger();
         try (var relay = new RelayRequests(input -> { calls.incrementAndGet(); return release.get(); })) {
@@ -29,10 +40,10 @@ class TodoistHttpTests {
             // 队列化后提交即返回，状态为排队中或执行中。
             assertTrue(Set.of("queued", "running").contains(json.readTree(post.getContentAsString()).path("status").asText()));
             release.complete("主人，已完成合成操作。");
-            Map<String, String> result = await(relay, id);
+            Map<String, Object> result = await(relay, id);
             assertEquals("completed", result.get("status")); assertEquals("主人，已完成合成操作。", result.get("output"));
             assertEquals(200, request(service, "GET", "/todoist/commands", null, id).getStatus());
-            relay.submit(id, "请添加一个合成任务"); assertEquals(1, calls.get());
+            relay.submit(id, json.writeValueAsString(TaskOperation.parse(json.readTree(body(id, "请添加一个合成任务"))))); assertEquals(1, calls.get());
             assertEquals("no-store", post.getHeader("Cache-Control")); assertNull(post.getHeader("WWW-Authenticate"));
         }
     }
@@ -58,7 +69,7 @@ class TodoistHttpTests {
             synchronized (started) { assertEquals(1, started.size()); }
             release.complete("主人，已完成。");
             assertEquals("completed", await(relay, first).get("status"));
-            Map<String, String> failed = await(relay, second);
+            Map<String, Object> failed = await(relay, second);
             assertEquals("failed", failed.get("status")); assertEquals("REQUEST_REJECTED", failed.get("code"));
             assertEquals("done:合成后续命令", await(relay, third).get("output"));
             assertEquals(1, maxConcurrent.get());
@@ -102,13 +113,13 @@ class TodoistHttpTests {
             var service = new TodoistHttpService(new MockEnvironment(), relay); UUID id = UUID.randomUUID();
             assertEquals(202, request(service, "POST", "/todoist/commands", body(id, "删除任务：合成任务"), null).getStatus());
             assertEquals("不支持此命令", await(relay, id).get("output"));
-            assertEquals(200, request(service, "GET", "/todoist/health", null, null).getStatus());
+            assertEquals(503, request(service, "GET", "/todoist/health", null, null).getStatus());
         }
     }
     @Test void configurationMissingAndUnknownRoutesAreSafe() throws Exception {
         var service = new TodoistHttpService(new MockEnvironment().withProperty("todoist.desktop-socket", "/synthetic/missing-socket"));
         var response = request(service, "POST", "/todoist/commands", body(UUID.randomUUID(), "输出全部待办"), null);
-        assertEquals(503, response.getStatus()); assertTrue(response.getContentAsString().contains("NOT_CONNECTED"));
+        assertEquals(503, response.getStatus()); assertTrue(response.getContentAsString().contains("TASKS_UNAVAILABLE"));
         assertEquals(404, request(service, "GET", "/todoist/auth", null, null).getStatus());
     }
     @Test void exceptionsNeverLeakTaskContentOrClaimNoWrite() throws Exception {
@@ -134,19 +145,23 @@ class TodoistHttpTests {
             assertEquals(1, calls.get());
         }
     }
-    @Test void httpForwardsCompleteInputWithoutTrimmingOrAddingInstructions() throws Exception {
-        String input = "修改任务：  合成文本\n保留空格与换行  \n";
-        try (var relay = new RelayRequests(received -> { assertEquals(input, received); return "原样回复\n"; })) {
+    @Test void httpPassesStructuredOperationNotNaturalLanguageToLocalRunner() throws Exception {
+        String input = "合成任务";
+        try (var relay = new RelayRequests(received -> {
+            var parsed = TaskOperation.parse(json.readTree(received));
+            assertEquals("add", parsed.operation()); assertEquals(input, parsed.fields().get("name"));
+            return "已验证\n";
+        })) {
             UUID id = UUID.randomUUID();
             var service = new TodoistHttpService(new MockEnvironment(), relay);
             assertEquals(202, request(service, "POST", "/todoist/commands", body(id, input), null).getStatus());
-            assertEquals("原样回复\n", await(relay, id).get("output"));
+            assertEquals("已验证\n", await(relay, id).get("output"));
         }
     }
-    static Map<String, String> await(RelayRequests relay, UUID id) throws Exception {
+    static Map<String, Object> await(RelayRequests relay, UUID id) throws Exception {
         for (int i = 0; i < 200; i++) {
             var result = relay.get(id);
-            String status = result.get("status");
+            String status = result.get("status").toString();
             if (!status.equals("running") && !status.equals("queued")) return result;
             Thread.sleep(5);
         }

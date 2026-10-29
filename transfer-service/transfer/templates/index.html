@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#24745b">
+  <meta name="description" content="在自己的设备之间传送文字、图片和文件。">
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>蜗牛传送 · 自己的设备，随手传</title>
+  <script src="{{ url_for('static', filename='app.js') }}" type="module"></script>
+</head>
+<body data-base="{{ request.script_root }}" class="{{ 'embedded' if embedded else '' }}">
+  <div id="auth-screen" class="auth-screen">
+    <section class="auth-card">
+      <img class="brand-icon" src="{{ url_for('static', filename='icon.svg') }}" width="56" height="56" alt="蜗牛传送">
+      <p class="eyebrow">YOUR PERSONAL TRANSFER SPACE</p>
+      <h1>自己的设备，随手传。</h1>
+      <p id="auth-description" class="muted">正在连接你的传输空间……</p>
+      <form id="login-form" hidden>
+        <label for="password">访问密码</label>
+        <input id="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="输入你的访问密码">
+        <p id="setup-hint" class="muted small" hidden>首次使用，请设置 10～256 个字符的密码。手机和电脑使用同一个密码登录。</p>
+        <button id="login-button" class="primary full" type="submit">进入传输空间 <span aria-hidden="true">↗</span></button>
+      </form>
+      <p id="auth-error" role="alert" class="error"></p>
+      <p class="auth-foot">文字 · 图片 · 文件，留在自己的空间里</p>
+    </section>
+  </div>
+
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='icon.svg') }}" width="38" height="38" alt=""><span>蜗牛传送<small>SNAIL TRANSFER</small></span></a>
+      <div class="sidebar-group"><p class="eyebrow">我的空间</p><button class="nav-item active" id="all-records"><span aria-hidden="true">▤</span> 全部记录 <span id="total-count" class="badge">0</span></button></div>
+      <div class="sidebar-note"><div class="note-icon" aria-hidden="true">↔</div><strong>在设备之间，自由流动。</strong><p>发一段文字、一张截图，<br>或一份刚刚整理好的文件。</p><span>原文与原文件，随时可取</span></div>
+      <div class="sidebar-bottom">
+        <div class="storage-heading"><span>存储空间</span><span id="storage-percent">--</span></div>
+        <progress id="storage-progress" value="0" max="100" aria-label="存储空间使用比例"></progress>
+        <p id="storage-label" class="small muted">正在读取存储信息</p>
+        <p id="reserved-label" class="small muted" hidden></p>
+        <button id="backup-button" class="text-button">导出完整备份 ↗</button>
+        <button id="change-password-button" class="text-button" type="button">修改密码</button>
+        <button id="logout-button" class="text-button">退出登录</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="page-header"><div><p class="eyebrow">YOUR EVERYDAY BRIDGE</p><h1>传输空间<span class="title-dot">.</span></h1><p class="muted">把此刻的内容，送到另一台设备。</p></div><div class="connection"><span id="connection-dot" class="status-dot"></span><span id="connection-label">正在连接</span></div></header>
+
+      <section class="composer" aria-labelledby="composer-title">
+        <div class="composer-heading"><h2 id="composer-title">发送点什么</h2><span class="device-tag" id="device-label">当前设备</span></div>
+        <label class="sr-only" for="message-text">需要传送的文字或链接</label>
+        <textarea id="message-text" maxlength="100000" rows="4" placeholder="输入或粘贴文字、链接，也可以把截图和文件拖到这里……"></textarea>
+        <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
+        <div class="composer-footer"><div><button id="choose-files" class="secondary" type="button"><span aria-hidden="true">＋</span> 添加文件</button><input id="file-picker" type="file" multiple hidden><span class="limit-label">单个文件 ≤ 500 MB</span></div><button id="send-button" class="primary" type="button">发送 <span aria-hidden="true">↗</span></button></div>
+        <p id="composer-hint" class="composer-hint">图片保留原图 · 上传时请保持页面打开</p>
+      </section>
+
+      <section class="history-section" aria-labelledby="history-title">
+        <div class="history-top"><h2 id="history-title">传输记录 <span id="records-caption" class="muted small"></span></h2><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" maxlength="200" placeholder="搜索文字、文件名" aria-label="搜索传输记录"></label></div>
+        <div class="filter-row" role="group" aria-label="记录类型"><button data-kind="all" class="filter active" aria-pressed="true">全部</button><button data-kind="text" class="filter" aria-pressed="false">文字</button><button data-kind="image" class="filter" aria-pressed="false">图片</button><button data-kind="file" class="filter" aria-pressed="false">文件</button><button id="refresh-button" class="refresh" aria-label="刷新记录">↻</button></div>
+        <div id="batch-actions" class="batch-actions" hidden>
+          <label class="select-all-label"><input id="select-all-records" type="checkbox">全选已加载记录</label>
+          <span id="selected-count" class="small muted" aria-live="polite">已选 0 条</span>
+          <button id="batch-delete-button" class="danger" type="button" disabled>删除所选</button>
+        </div>
+        <div id="history-list" aria-live="polite"></div>
+        <button id="load-more" class="secondary load-more" hidden>加载更早记录</button>
+      </section>
+      <footer class="page-footer"><span>蜗牛传送</span><span>小小的桥，连接你的设备。</span></footer>
+    </main>
+  </div>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="password-dialog" aria-labelledby="password-title">
+    <form id="password-form">
+      <h2 id="password-title">修改密码</h2>
+      <p id="password-hint">新密码允许 10～256 个字符，不强制字符组合。修改后所有设备需要重新登录，传输记录和文件保留。</p>
+      <label for="current-password">旧密码</label>
+      <input id="current-password" type="password" autocomplete="current-password" required maxlength="256">
+      <label for="new-password">新密码</label>
+      <input id="new-password" type="password" autocomplete="new-password" required minlength="10" maxlength="256" aria-describedby="password-hint">
+      <label for="confirm-password">确认新密码</label>
+      <input id="confirm-password" type="password" autocomplete="new-password" required minlength="10" maxlength="256">
+      <p id="password-error" class="error" role="alert"></p>
+      <div class="dialog-actions"><button id="password-cancel" class="secondary" type="button">取消</button><button id="password-submit" class="primary" type="submit">保存新密码</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">删除这条记录？</h2><p>原文和服务器上的附件将被删除，无法撤销。已经下载到设备的副本会保留。</p><div class="dialog-actions"><button id="confirm-cancel" class="secondary">取消</button><button id="confirm-ok" class="danger">删除</button></div></dialog>
+  <div id="drop-overlay" class="drop-overlay" hidden><div>松开文件，开始传送 <span aria-hidden="true">↘</span></div></div>
+</body>
+</html>

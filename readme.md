@@ -1,12 +1,12 @@
 # 工具后端
 
-当前工具后端与 todoist 项目版本统一为 `3.2.4`，随产品 V3 电脑手机同步阶段管理；本次仅对齐产品元数据，不重新部署 Java，原工具接口、任务文件和固定产物名不变。
+当前工具后端与 todoist 项目版本统一为 `3.3.0`，随产品 V3 电脑手机同步阶段管理；本次仅对齐产品元数据，不重新部署 Java，原工具接口、任务文件和固定产物名不变。
 
 Java 21／Spring Boot 工具接口与独立 todoist 本地任务模块，不依赖数据库。使用仓库 Maven Wrapper（Maven 3.9.9），运行前让 `JAVA_HOME` 指向 JDK 21。v0.4.0 本地执行版已于 2026-10-20 部署，原工具 WAR 不变。
 
 ## 电脑手机同步
 
-`transfer-service/` 为蜗牛传送的正式源码，随本仓库维护，使用 Python／Flask、SQLite 和磁盘附件，独立于两个 Java 模块，不纳入 Maven 构建。包含文字／图片／文件传输、历史、图片复制、10 位起的网页改密和勾选批量删除，以及上传超时／取消与重试、紧凑记录与发送按钮、自适应输入区；传输组件 v3.2.4 已独立部署。运行、数据边界和验证入口见 [传输服务说明](transfer-service/README.md) 与 [项目规范](transfer-service/AGENTS.md) 。
+`transfer-service/` 为蜗牛传送的正式源码，随本仓库维护，使用 Python／Flask、SQLite 和磁盘附件，独立于两个 Java 模块，不纳入 Maven 构建。包含文字／图片／文件传输、历史、图片复制、10 位起的网页改密和勾选批量删除，以及上传超时／取消与重试、紧凑记录与发送按钮、自适应输入区；传输组件 v3.3.0 已独立部署，新增每页 5／10／20 条记录分页、匹配总数及全选本页。运行、数据边界和验证入口见 [传输服务说明](transfer-service/README.md) 与 [项目规范](transfer-service/AGENTS.md) 。
 
 当前 Mac mini 保留原 `/Users/macminimai/ai/project/snail-transfer/.venv/` 与历史 `.tmp/`，生产继续使用该虚拟环境和原独立发布包；迁入源码不会改变生产记录、密码、自启动或服务进程。新检出目录按传输服务说明创建独立虚拟环境。
 

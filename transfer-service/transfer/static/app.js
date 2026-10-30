@@ -8,7 +8,8 @@ const BASE = document.body.dataset.base || "";
 const endpoint = path => BASE + path;
 const state = { csrf: "", authenticated: false, configured: false, localSetup: false,
   files: [], sending: false, preparing: false, changingPassword: false, deleting: false, kind: "all", next: null, rows: [], search: "", request: 0,
-  snapshot: "", clientId: "", signature: "", toastTimer: null, loadedMore: false };
+  snapshot: "", clientId: "", signature: "", toastTimer: null,
+  pageSize: 5, page: 0, cursors: [null], pageLoading: false, historyTotal: 0, latest: null, historyChanged: false, historyError: "" };
 const DEVICE = /Android/i.test(navigator.userAgent) ? "Android" : /Windows/i.test(navigator.userAgent) ? "Windows" : /Mac/i.test(navigator.userAgent) ? "Mac" : "其他设备";
 const QUEUE_KEY = "snail-transfer-draft-v1";
 const CHUNK_SIZE = 8 * 1024 * 1024;
@@ -108,7 +109,7 @@ async function showWorkspace() {
   $("auth-screen").hidden = true; $("workspace").hidden = false; label("device-label", `来自 ${DEVICE}`);
   resizeComposer();
   if (!state.files.length) restoreDraft();
-  await Promise.all([refreshHistory(), refreshStats()]);
+  await Promise.all([refreshHistory({ reset: true }), refreshStats()]);
   await readSharedDraft();
   resizeComposer();
 }
@@ -323,7 +324,7 @@ $("send-button").addEventListener("click", async () => {
     state.files = []; state.snapshot = ""; state.clientId = ""; $("message-text").value = "";
     resizeComposer();
     rememberDraft(); renderQueue(); toast("已保存，其他设备打开后即可查看");
-    state.loadedMore = false; refreshHistory(); refreshStats().catch(() => connected(false));
+    refreshHistory({ reset: true }); refreshStats().catch(() => connected(false));
   } catch (error) {
     if (submitting) {
       for (const file of state.files) { file.status = "记录提交结果待确认，可点击发送核对重试"; file.error = true; } renderQueue();
@@ -345,28 +346,64 @@ async function refreshStats() {
   $("storage-progress").value = info.used / info.quota * 100;
   label("storage-label", `${bytes(info.used)} / ${bytes(info.quota)}`);
   $("reserved-label").hidden = !info.reserved; label("reserved-label", `含待发送文件预留 ${bytes(info.reserved)}`);
-  label("records-caption", `共 ${info.count} 条`);
   const warning = info.used / info.quota >= 0.9;
   $("composer-warning").hidden = !warning;
   label("composer-warning", warning ? "存储空间即将用满，请先备份并删除不需要的内容" : "");
 }
-async function refreshHistory(append = false, quiet = false) {
-  const query = new URLSearchParams({ q: state.search, kind: state.kind });
-  if (append && state.next) query.set("before", state.next);
+function updatePagination() {
+  const busy = state.pageLoading || state.deleting;
+  $("page-size").value = String(state.pageSize); $("page-size").disabled = busy;
+  $("previous-page").disabled = busy || state.page === 0;
+  $("next-page").disabled = busy || !state.next;
+  $("history-updated").hidden = !state.historyChanged; $("history-updated").disabled = busy;
+  $("search").disabled = state.deleting;
+  label("page-status", state.pageLoading ? "读取中…" : `第 ${state.page + 1} 页`);
+  const total = `${state.search || state.kind !== "all" ? "匹配" : "共"} ${state.historyTotal} 条`;
+  label("pagination-total", total); label("records-caption", total);
+  $("history-list").setAttribute("aria-busy", String(state.pageLoading));
+  updateSelection();
+}
+async function refreshHistory({ page = state.page, reset = false, quiet = false } = {}) {
+  if (quiet && (state.pageLoading || $("confirm-dialog").open)) return;
+  if (reset) {
+    clearTimeout(searchTimer); page = 0;
+    Object.assign(state, { page: 0, cursors: [null], next: null, rows: [], signature: "", latest: null, historyTotal: 0, historyChanged: false, historyError: "" });
+  }
+  const cursor = page === 0 ? null : page === state.page + 1 ? state.next : state.cursors[page];
+  if (page < 0 || (page > 0 && !cursor)) return;
+  const query = new URLSearchParams({ q: state.search, kind: state.kind, page_size: String(state.pageSize) });
+  if (cursor) query.set("before", cursor);
   const ticket = ++state.request;
+  if (!quiet) { selectedRecords.clear(); state.pageLoading = true; state.historyError = ""; }
+  if (reset) renderHistory();
+  updatePagination();
   try {
     const data = await json(`/api/messages?${query}`);
     if (ticket !== state.request) return;
-    if (append) { state.rows.push(...data.messages); state.loadedMore = true; state.next = data.next; }
-    else if (quiet && state.loadedMore && data.messages.length) {
-      const oldest = data.messages[data.messages.length - 1].created;
-      const seen = new Set(data.messages.map(m => m.id));
-      state.rows = [...data.messages, ...state.rows.filter(m => !seen.has(m.id) && m.created <= oldest)];
-    } else { state.rows = data.messages; state.next = data.next; }
-    const signature = JSON.stringify(state.rows);
+    const signature = JSON.stringify(data.messages);
+    if (quiet && (state.page > 0 || selectedRecords.size)) {
+      state.historyChanged ||= signature !== state.signature || data.latest !== state.latest || data.total !== state.historyTotal;
+      state.historyTotal = data.total; updatePagination(); connected(true); return;
+    }
+    if (!data.messages.length && page > 0 && data.total > 0) {
+      return await refreshHistory({ page: page - 1 });
+    }
+    if (!data.total) page = 0;
+    state.page = page; state.cursors = state.cursors.slice(0, page + 1); state.cursors[page] = page === 0 ? null : cursor;
+    state.rows = data.messages; state.next = data.next; state.historyTotal = data.total; state.latest = data.latest; state.historyChanged = false;
+    state.historyError = "";
     if (signature !== state.signature) { state.signature = signature; renderHistory(); }
-    $("load-more").hidden = !state.next; connected(true);
-  } catch (error) { connected(false); if (!quiet) toast(error.message, true); }
+    connected(true);
+  } catch (error) {
+    if (ticket !== state.request) return;
+    connected(false);
+    if (!quiet) { state.historyError = error.message; if (reset) { state.rows = []; state.signature = ""; } toast(error.message, true); }
+  } finally {
+    if (ticket === state.request) {
+      if (!quiet) { state.pageLoading = false; if (!state.rows.length) renderHistory(); }
+      updatePagination();
+    }
+  }
 }
 function textWithLinks(text) {
   const node = el("div", "record-text");
@@ -414,7 +451,9 @@ function renderHistory() {
   for (const id of selectedRecords) if (!visibleIds.has(id)) selectedRecords.delete(id);
   const fragment = document.createDocumentFragment();
   if (!state.rows.length) {
-    const empty = el("div", "empty"); empty.append(el("div", "empty-symbol", "↔"), el("strong", "", state.search || state.kind !== "all" ? "没有找到符合条件的记录" : "第一段内容，从这里出发"), el("p", "", state.search || state.kind !== "all" ? "换个关键词或筛选条件试试。" : "发送一段文字或一张图片，另一台设备就能看见。")); fragment.append(empty);
+    const title = state.pageLoading ? "正在读取记录…" : state.historyError ? "记录暂时无法加载" : state.search || state.kind !== "all" ? "没有找到符合条件的记录" : "第一段内容，从这里出发";
+    const hint = state.pageLoading ? "请稍候。" : state.historyError ? "请刷新后重试。" : state.search || state.kind !== "all" ? "换个关键词或筛选条件试试。" : "发送一段文字或一张图片，另一台设备就能看见。";
+    const empty = el("div", "empty"); empty.append(el("div", "empty-symbol", "↔"), el("strong", "", title), el("p", "", hint)); fragment.append(empty);
   }
   for (const record of state.rows) {
     const card = el("article", "record");
@@ -478,17 +517,16 @@ function updateSelection() {
   $("batch-actions").hidden = !state.rows.length;
   const count = selectedRecords.size;
   label("selected-count", `已选 ${count} 条`);
-  $("batch-delete-button").disabled = !count || state.deleting;
+  $("batch-delete-button").disabled = !count || state.deleting || state.pageLoading;
   const all = $("select-all-records");
   all.checked = !!state.rows.length && state.rows.every(record => selectedRecords.has(record.id));
-  all.indeterminate = count > 0 && !all.checked; all.disabled = state.deleting;
+  all.indeterminate = count > 0 && !all.checked; all.disabled = state.deleting || state.pageLoading;
   for (const box of document.querySelectorAll(".record-checkbox")) {
-    box.checked = selectedRecords.has(box.dataset.recordId); box.disabled = state.deleting;
+    box.checked = selectedRecords.has(box.dataset.recordId); box.disabled = state.deleting || state.pageLoading;
   }
 }
 function clearSelection() { selectedRecords.clear(); updateSelection(); }
 $("select-all-records").addEventListener("change", event => {
-  if (event.target.checked && state.rows.length > 1000) { updateSelection(); return toast("一次最多选择 1000 条记录，请减少已加载记录后重试", true); }
   selectedRecords.clear();
   if (event.target.checked) for (const record of state.rows) selectedRecords.add(record.id);
   updateSelection();
@@ -498,7 +536,7 @@ $("batch-delete-button").addEventListener("click", () => {
 });
 let deletingIds = [], deletingBatch = false;
 function confirmDelete(ids, batch = false) {
-  if (state.deleting) return;
+  if (state.deleting || state.pageLoading) return;
   deletingIds = [...ids]; deletingBatch = batch;
   label("confirm-title", batch ? `删除选中的 ${ids.length} 条记录？` : "删除这条记录？");
   $("confirm-dialog").showModal();
@@ -509,7 +547,7 @@ $("confirm-ok").addEventListener("click", async () => {
   if (state.deleting || !deletingIds.length) return;
   const ids = [...deletingIds];
   state.deleting = true; $("confirm-ok").disabled = true; $("confirm-cancel").disabled = true;
-  label("confirm-ok", "正在删除…"); updateSelection();
+  label("confirm-ok", "正在删除…"); updatePagination();
   try {
     if (deletingBatch) await json("/api/messages", { method: "DELETE", body: JSON.stringify({ ids }) });
     else await json(`/api/messages/${ids[0]}`, { method: "DELETE" });
@@ -517,22 +555,36 @@ $("confirm-ok").addEventListener("click", async () => {
     for (const id of ids) selectedRecords.delete(id);
     state.rows = state.rows.filter(record => !ids.includes(record.id));
     state.signature = JSON.stringify(state.rows); renderHistory();
-    $("confirm-dialog").close(); state.loadedMore = false;
+    $("confirm-dialog").close();
     toast("所选记录及服务器附件已删除");
     await Promise.all([refreshHistory(), refreshStats()]);
   }
   catch (error) { toast(error.message, true); }
-  finally { state.deleting = false; $("confirm-ok").disabled = false; $("confirm-cancel").disabled = false; label("confirm-ok", "删除"); updateSelection(); }
+  finally { state.deleting = false; $("confirm-ok").disabled = false; $("confirm-cancel").disabled = false; label("confirm-ok", "删除"); updatePagination(); }
 });
 document.querySelectorAll("[data-kind]").forEach(button => button.addEventListener("click", () => {
-  state.kind = button.dataset.kind; state.loadedMore = false; clearSelection();
-  document.querySelectorAll("[data-kind]").forEach(b => { b.classList.toggle("active", b === button); b.setAttribute("aria-pressed", String(b === button)); }); refreshHistory();
+  if (state.deleting) return;
+  state.kind = button.dataset.kind;
+  document.querySelectorAll("[data-kind]").forEach(b => { b.classList.toggle("active", b === button); b.setAttribute("aria-pressed", String(b === button)); }); refreshHistory({ reset: true });
 }));
 let searchTimer;
-$("search").addEventListener("input", () => { clearSelection(); clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = $("search").value; state.loadedMore = false; refreshHistory(); }, 250); });
-$("refresh-button").addEventListener("click", () => { state.loadedMore = false; refreshHistory(); refreshStats().catch(error => toast(error.message, true)); });
+$("search").addEventListener("input", () => {
+  if (state.deleting) return;
+  state.search = $("search").value; ++state.request; state.pageLoading = true; selectedRecords.clear(); updatePagination(); clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => refreshHistory({ reset: true }), 250);
+});
+function refreshFirstPage() { if (!state.deleting) { refreshHistory({ reset: true }); refreshStats().catch(error => toast(error.message, true)); } }
+$("refresh-button").addEventListener("click", refreshFirstPage);
+$("history-updated").addEventListener("click", refreshFirstPage);
 $("all-records").addEventListener("click", () => { $("search").value = ""; state.search = ""; document.querySelector('[data-kind="all"]').click(); });
-$("load-more").addEventListener("click", () => refreshHistory(true));
+$("previous-page").addEventListener("click", () => { if (!state.pageLoading && !state.deleting && state.page > 0) return refreshHistory({ page: state.page - 1 }); });
+$("next-page").addEventListener("click", () => { if (!state.pageLoading && !state.deleting && state.next) return refreshHistory({ page: state.page + 1 }); });
+$("page-size").addEventListener("change", () => {
+  if (state.deleting) return;
+  const size = Number($("page-size").value);
+  if (![5, 10, 20].includes(size)) { updatePagination(); return; }
+  state.pageSize = size; return refreshHistory({ reset: true });
+});
 $("backup-button").addEventListener("click", () => {
   // Let the browser stream the archive to disk instead of buffering a large Blob.
   const form = el("form"); form.method = "POST"; form.action = endpoint("/api/backup"); form.target = "_blank"; form.rel = "noopener";
@@ -565,6 +617,6 @@ async function readSharedDraft() {
   history.replaceState(null, "", endpoint("/"));
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register(endpoint("/sw.js"), { scope: endpoint("/") }).catch(() => { /* Browser upload remains available without installation. */ });
-setInterval(() => { if (state.authenticated && !document.hidden && !state.sending && !state.deleting && !$("confirm-dialog").open) { refreshHistory(false, true); refreshStats().catch(() => connected(false)); } }, 5000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && state.authenticated) { resizeComposer(); refreshHistory(false, true); } });
+setInterval(() => { if (state.authenticated && !document.hidden && !state.sending && !state.deleting && !$("confirm-dialog").open) { refreshHistory({ quiet: true }); refreshStats().catch(() => connected(false)); } }, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.authenticated) { resizeComposer(); refreshHistory({ quiet: true }); } });
 boot();

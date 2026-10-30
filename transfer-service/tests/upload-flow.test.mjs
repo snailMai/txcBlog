@@ -111,7 +111,7 @@ async function harness(t, options = {}) {
       }
       if (url.startsWith("/transfer/api/messages?")) {
         if (settings.stall === "refresh" && records.size) return new Promise(() => {});
-        return new Response('{"messages":[],"next":null}');
+        return new Response('{"messages":[],"next":null,"total":0,"latest":null}');
       }
       if (url.endsWith("/api/stats")) return new Response(JSON.stringify({ used: settings.used || 0, quota: 1000, count: 0, reserved: 0 }));
       throw new Error("Unexpected synthetic request: " + url);
@@ -167,11 +167,13 @@ test("cancelling a stalled chunk aborts it and retains the task for continuation
 
 test("lost chunk acknowledgement is reconciled without uploading the same chunk again", async t => {
   const h = await harness(t, { loseChunkReply: true });
+  h.state.page = 2;
   await h.send();
   assert.equal(h.sends.length, 1);
   assert.ok(h.calls.some(call => call.url === "/transfer/api/uploads/" + h.job.id));
   assert.equal(h.records.size, 1);
   assert.equal(h.state.files.length, 0);
+  assert.equal(h.state.page, 0);
 });
 
 test("lost commit response reuses the same idempotency key and creates one record", async t => {

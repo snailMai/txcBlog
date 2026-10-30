@@ -40,7 +40,7 @@ async function harness(reply = () => new Response('{"ok":true}')) {
     async fetch(url, options) {
       calls.push({ url, options });
       if (url === "/transfer/api/session") return new Response(JSON.stringify({ authenticated, configured: true, csrf: "synthetic-csrf" }));
-      if (url.startsWith("/transfer/api/messages")) return new Response('{"messages":[],"next":null}');
+      if (url.startsWith("/transfer/api/messages")) return new Response('{"messages":[],"next":null,"total":0,"latest":null}');
       if (url === "/transfer/api/stats") return new Response('{"count":0,"used":0,"quota":20000000000,"reserved":0}');
       if (url === "/transfer/api/password") {
         const response = await reply();

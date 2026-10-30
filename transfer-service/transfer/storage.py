@@ -337,7 +337,10 @@ class Store:
                 db.execute("UPDATE uploads SET message_id=? WHERE id=?", (message_id, upload_id))
             return message_id
 
-    def history(self, search="", kind="all", before=None):
+    def history(self, search="", kind="all", before=None, page_size=None):
+        if page_size is not None and (type(page_size) is not int or page_size not in (5, 10, 20)):
+            raise Problem("每页条数只能为 5、10 或 20")
+        limit = 30 if page_size is None else page_size
         if kind not in ("all", "text", "image", "file"):
             raise Problem("筛选类型无效")
         if len(search) > 200:
@@ -351,19 +354,25 @@ class Store:
         elif kind in ("image", "file"):
             comparator = "LIKE" if kind == "image" else "NOT LIKE"
             conditions.append(f"EXISTS (SELECT 1 FROM uploads u WHERE u.message_id=m.id AND u.mime {comparator} 'image/%')")
+        filtered_conditions = " AND ".join(conditions)
+        filtered_params = list(params)
         if before:
             if not ID_PATTERN.fullmatch(before):
                 raise Problem("分页标识无效")
             conditions.append("m.rowid < COALESCE((SELECT rowid FROM messages WHERE id=?),0)")
             params.append(before)
         with self.db() as db:
-            rows = db.execute("SELECT m.* FROM messages m WHERE " + " AND ".join(conditions) + " ORDER BY m.rowid DESC LIMIT 31", params).fetchall()
+            db.execute("BEGIN")
+            summary = db.execute("SELECT COUNT(*) AS total, MAX(m.rowid) AS newest FROM messages m WHERE " + filtered_conditions, filtered_params).fetchone()
+            latest = db.execute("SELECT id FROM messages WHERE rowid=?", (summary["newest"],)).fetchone()
+            rows = db.execute("SELECT m.* FROM messages m WHERE " + " AND ".join(conditions) + " ORDER BY m.rowid DESC LIMIT ?", [*params, limit + 1]).fetchall()
             messages = []
-            for row in rows[:30]:
+            for row in rows[:limit]:
                 attachments = [dict(r) for r in db.execute("SELECT id,name,size,mime,sha256,thumb_size FROM uploads WHERE message_id=? ORDER BY rowid", (row["id"],))]
                 messages.append({"id": row["id"], "text": row["text"], "device": row["device"],
                                  "created": row["created"], "files": attachments})
-            return {"messages": messages, "next": rows[29]["id"] if len(rows) > 30 else None}
+            return {"messages": messages, "next": rows[limit - 1]["id"] if len(rows) > limit else None,
+                    "total": summary["total"], "latest": latest["id"] if latest else None}
 
     def remove_message(self, message_id):
         if not ID_PATTERN.fullmatch(message_id):

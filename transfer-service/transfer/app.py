@@ -177,7 +177,11 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
 
     @app.get("/api/messages")
     def history():
-        return jsonify(store.history(request.args.get("q", ""), request.args.get("kind", "all"), request.args.get("before")))
+        size = request.args.get("page_size")
+        if size is not None and size not in ("5", "10", "20"):
+            raise Problem("每页条数只能为 5、10 或 20")
+        return jsonify(store.history(request.args.get("q", ""), request.args.get("kind", "all"), request.args.get("before"),
+                                     int(size) if size is not None else None))
 
     @app.post("/api/messages")
     def send():

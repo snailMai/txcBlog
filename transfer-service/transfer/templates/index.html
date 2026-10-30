@@ -62,12 +62,17 @@
         <div class="history-top"><h2 id="history-title">传输记录 <span id="records-caption" class="muted small"></span></h2><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" maxlength="200" placeholder="搜索文字、文件名" aria-label="搜索传输记录"></label></div>
         <div class="filter-row" role="group" aria-label="记录类型"><button data-kind="all" class="filter active" aria-pressed="true">全部</button><button data-kind="text" class="filter" aria-pressed="false">文字</button><button data-kind="image" class="filter" aria-pressed="false">图片</button><button data-kind="file" class="filter" aria-pressed="false">文件</button><button id="refresh-button" class="refresh" aria-label="刷新记录">↻</button></div>
         <div id="batch-actions" class="batch-actions" hidden>
-          <label class="select-all-label"><input id="select-all-records" type="checkbox">全选已加载记录</label>
+          <label class="select-all-label"><input id="select-all-records" type="checkbox">全选本页</label>
           <span id="selected-count" class="small muted" aria-live="polite">已选 0 条</span>
           <button id="batch-delete-button" class="danger" type="button" disabled>删除所选</button>
         </div>
         <div id="history-list" aria-live="polite"></div>
-        <button id="load-more" class="secondary load-more" hidden>加载更早记录</button>
+        <button id="history-updated" class="text-button history-updated" type="button" hidden>记录有更新，点击回首页刷新</button>
+        <nav id="history-pagination" class="history-pagination" aria-label="传输记录分页">
+          <span id="pagination-total" class="small muted">共 0 条</span>
+          <label class="page-size-label" for="page-size">每页<select id="page-size"><option value="5" selected>5 条</option><option value="10">10 条</option><option value="20">20 条</option></select></label>
+          <div class="page-buttons"><button id="previous-page" class="secondary" type="button" disabled>上一页</button><span id="page-status" class="small muted" aria-live="polite">第 1 页</span><button id="next-page" class="secondary" type="button" disabled>下一页</button></div>
+        </nav>
       </section>
       <footer class="page-footer"><span>蜗牛传送</span><span>小小的桥，连接你的设备。</span></footer>
     </main>

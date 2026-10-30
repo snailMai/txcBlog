@@ -51,11 +51,11 @@
 
       <section class="composer" aria-labelledby="composer-title">
         <div class="composer-heading"><h2 id="composer-title">发送点什么</h2><span class="device-tag" id="device-label">当前设备</span></div>
+        <p id="composer-warning" class="composer-warning" role="status" hidden></p>
         <label class="sr-only" for="message-text">需要传送的文字或链接</label>
-        <textarea id="message-text" maxlength="100000" rows="4" placeholder="输入或粘贴文字、链接，也可以把截图和文件拖到这里……"></textarea>
+        <textarea id="message-text" maxlength="100000" rows="1" placeholder="输入或粘贴文字、链接，也可以把截图和文件拖到这里……"></textarea>
         <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
-        <div class="composer-footer"><div><button id="choose-files" class="secondary" type="button"><span aria-hidden="true">＋</span> 添加文件</button><input id="file-picker" type="file" multiple hidden><span class="limit-label">单个文件 ≤ 500 MB</span></div><button id="send-button" class="primary" type="button">发送 <span aria-hidden="true">↗</span></button></div>
-        <p id="composer-hint" class="composer-hint">图片保留原图 · 上传时请保持页面打开</p>
+        <div class="composer-footer"><div><button id="choose-files" class="secondary" type="button"><span aria-hidden="true">＋</span> 添加文件</button><input id="file-picker" type="file" multiple hidden><span class="limit-label">单个文件 ≤ 500 MB</span></div><div class="send-actions"><button id="cancel-send" class="secondary" type="button" hidden>取消发送</button><button id="send-button" class="primary" type="button" aria-busy="false"><span id="send-label">发送</span><span class="send-icon" aria-hidden="true">↗</span></button></div></div>
       </section>
 
       <section class="history-section" aria-labelledby="history-title">

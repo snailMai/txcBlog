@@ -47,7 +47,7 @@ class MountedTransferTests(unittest.TestCase):
         self.assertEqual(page.headers["X-Frame-Options"], "SAMEORIGIN")
         self.assertIn("frame-ancestors 'self'", page.headers["Content-Security-Policy"])
         self.assertIn('type="module"', text)
-        for path in ("/static/app.js", "/static/image-clipboard.mjs", "/static/style.css", "/static/icon.svg", "/health"):
+        for path in ("/static/app.js", "/static/image-clipboard.mjs", "/static/transfer-io.mjs", "/static/style.css", "/static/icon.svg", "/health"):
             response = self.request(path)
             self.assertEqual(response.status_code, 200)
             if path.endswith(".mjs"):

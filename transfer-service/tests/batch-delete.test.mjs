@@ -2,17 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import { withDeadline } from "../transfer/static/transfer-io.mjs";
 
 const source = (await readFile(new URL("../transfer/static/app.js", import.meta.url), "utf8"))
-  .replace(/^import .*image-clipboard\.mjs.*;\n/m, "");
+  .replace(/^import .*\.mjs.*;\n/gm, "");
 const records = ["first", "second", "third"].map((text, index) => ({
   id: String(index + 1).repeat(32), text, device: "Windows", created: 30 - index, files: [],
 }));
 const settle = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); };
 
-async function harness(deleteReply = () => new Response('{"ok":true}')) {
+async function harness(deleteReply = () => new Response('{"ok":true}'), initialRows = records) {
   const ids = new Map(), requests = [], intervals = [], timers = [];
-  let serverRows = [...records];
+  const copiedText = [];
+  let serverRows = [...initialRows];
   function element(id = "") {
     if (id && ids.has(id)) return ids.get(id);
     const listeners = new Map();
@@ -37,12 +39,13 @@ async function harness(deleteReply = () => new Response('{"ok":true}')) {
   function descendants(node) { return [node, ...node.children.flatMap(descendants)]; }
   const boxes = () => descendants(element("history-list")).filter(node => node.className === "record-checkbox");
   const context = vm.createContext({
+    withDeadline,
     document: { body: { dataset: { base: "/transfer" } }, hidden: false,
       getElementById: element, createElement: () => element(), createDocumentFragment: () => element(),
       createTextNode: text => ({ children: [], textContent: text }),
       querySelectorAll: selector => selector === "[data-kind]" ? filters : selector === ".record-checkbox" ? boxes() : [],
       querySelector: () => filters[0], addEventListener() {} },
-    navigator: { userAgent: "Windows" }, window: { addEventListener() {} },
+    navigator: { userAgent: "Windows", clipboard: { async writeText(text) { copiedText.push(text); } } }, window: { addEventListener() {} },
     location: { search: "" }, URLSearchParams,
     localStorage: { getItem: () => "[]", setItem() {}, removeItem() {} },
     setTimeout(fn, delay) { timers.push({ fn, delay }); return timers.length; }, clearTimeout() {},
@@ -70,7 +73,9 @@ async function harness(deleteReply = () => new Response('{"ok":true}')) {
   vm.runInContext(source + "\nglobalThis.testState = state;", context);
   await settle();
   return {
-    node: element, boxes, requests, state: context.testState,
+    node: element, boxes, requests, state: context.testState, copiedText,
+    cards: () => descendants(element("history-list")).filter(node => node.className === "record"),
+    descendants,
     deletes: () => requests.filter(request => request.options.method === "DELETE"),
     async select(index, checked = true) { const box = boxes()[index]; box.checked = checked; await box.emit("change"); },
     async selectAll(checked) { const node = element("select-all-records"); node.checked = checked; await node.emit("change", { target: node }); },
@@ -173,4 +178,51 @@ test("original single-record deletion still uses its existing endpoint", async (
   assert.equal(h.deletes()[0].url, "/transfer/api/messages/" + records[0].id);
   assert.equal(h.deletes()[0].options.body, undefined);
   assert.equal(h.boxes()[0].dataset.recordId, records[1].id);
+});
+
+test("text actions in the header copy original content and still confirm deletion", async () => {
+  const text = "保留原文\nhttps://example.com/?a=1&b=2";
+  const h = await harness(undefined, [{ ...records[0], text }]);
+  const card = h.cards()[0], top = card.children[0];
+  const actions = top.children.find(node => node.className === "record-actions");
+  assert.deepEqual(actions.children.map(node => node.textContent), ["复制文字", "删除记录"]);
+  assert.equal(h.descendants(card).filter(node => node.className === "record-actions").length, 1);
+  await actions.children[0].click();
+  assert.equal(h.copiedText[0], text);
+  await actions.children[1].click();
+  assert.equal(h.deletes().length, 0);
+  await h.node("confirm-ok").click();
+  assert.equal(h.deletes()[0].url, "/transfer/api/messages/" + records[0].id);
+});
+
+const imageFile = { id: "a".repeat(32), name: "image.png", size: 30, mime: "image/png", thumb_size: 12 };
+const plainFile = { id: "b".repeat(32), name: "示例表格.xlsx", size: 40, mime: "application/octet-stream", thumb_size: 0 };
+const controls = (h, card) => h.descendants(card.children[0]).filter(node => node.textContent === "下载" || /^(复制图片|复制文字|删除记录)$/.test(node.textContent));
+
+test("image and file actions retain exact order and authenticated file targets without duplicate controls", async () => {
+  const h = await harness(undefined, [
+    { ...records[0], text: "", files: [imageFile] },
+    { ...records[1], text: "", files: [plainFile] },
+  ]);
+  const [image, file] = h.cards();
+  assert.deepEqual(controls(h, image).map(node => node.textContent), ["复制图片", "下载", "删除记录"]);
+  assert.deepEqual(controls(h, file).map(node => node.textContent), ["下载", "删除记录"]);
+  assert.equal(controls(h, image)[0]["aria-label"], "复制图片：image.png");
+  assert.equal(controls(h, image)[1].href, `/transfer/api/files/${imageFile.id}/download`);
+  assert.equal(controls(h, file)[0].href, `/transfer/api/files/${plainFile.id}/download`);
+  assert.ok(h.descendants(image).some(node => node.href === `/transfer/api/files/${imageFile.id}/preview`));
+  assert.equal(h.descendants(image).filter(node => node.className === "download").length, 1);
+  assert.ok(!h.descendants(image).some(node => node.textContent === "下载原图" || node.textContent === "↓" || node.className === "file-actions"));
+});
+
+test("mixed multi-attachment records keep each file identifiable and deletion last after polling", async () => {
+  const h = await harness(undefined, [{ ...records[0], files: [imageFile, plainFile] }]);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const card = h.cards()[0];
+    const groups = h.descendants(card.children[0]).filter(node => node.className === "record-file-actions");
+    assert.deepEqual(groups.map(group => group.children[0].textContent), [imageFile.name, plainFile.name]);
+    assert.deepEqual(controls(h, card).map(node => node.textContent), ["复制文字", "复制图片", "下载", "下载", "删除记录"]);
+    assert.deepEqual(controls(h, card).filter(node => node.textContent === "下载").map(node => node.href), [imageFile, plainFile].map(file => `/transfer/api/files/${file.id}/download`));
+    await h.poll();
+  }
 });

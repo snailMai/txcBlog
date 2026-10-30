@@ -2,9 +2,9 @@
 
 本项目复用 `https://tools.20242233.xyz/Transfer`，无需独立域名。Vue 站点嵌入 `/transfer/?embedded=1`，Caddy 把 `/transfer/*` 原样转发到 `127.0.0.1:8765`；传输服务使用 `--prefix /transfer`。PWA 分享及资源作用域均为 `/transfer/`，不占用工具站根路径。
 
-首次于 2026-10-28 随工具站 v0.7.0 部署，当前传输组件为 v3.1.0，包含图片复制和网页改密。实际启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-password-20261029-113138/transfer-service/`；使用保留的 `/Users/macminimai/ai/project/snail-transfer/.venv/bin/python`，不从临时测试目录运行。第一次生产密码记录位于专用数据目录的 `access-password.txt`（0600），不会输出到部署日志；后续发布不重新初始化或覆盖密码，网页改密也不会更新首次密码记录。
+首次于 2026-10-28 随工具站 v0.7.0 部署，当前传输组件为 v3.2.4，包含紧凑发送按钮、自动伸缩输入区、紧凑记录卡片、顶部操作栏、上传超时／取消及重试修复、批量删除、图片复制和网页改密。实际启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-send-20261030-092756/transfer-service/`；使用保留的 `/Users/macminimai/ai/project/snail-transfer/.venv/bin/python`，不从临时测试目录运行。第一次生产密码记录位于专用数据目录的 `access-password.txt`（0600），不会输出到部署日志；后续发布不重新初始化或覆盖密码，网页改密也不会更新首次密码记录。
 
-本次只恢复传输服务，其他组件不变。新包上级目录的 `sha256.json`、`deployment.json` 记录文件哈希和验证结果；旧启动项备份为 `/Users/macminimai/Library/Application Support/personweb/backups/transfer-password-20261029-113138/com.snailmai.transfer.plist`。回退时先 bootout 传输作业，恢复该启动项，再 bootstrap；旧发布目录完整保留，不回滚或删除真实数据。网页已改成 10 位密码后，回退程序仍能用该密码登录；原版本的登录校验不限制最短长度。
+本次只恢复传输服务，其他组件不变。新包上级目录的 `sha256.json`、`deployment.json` 记录文件哈希和验证结果；旧启动项备份为 `/Users/macminimai/Library/Application Support/personweb/backups/transfer-send-20261030-092756/com.snailmai.transfer.plist`。回退时先 bootout 传输作业，恢复该启动项，再 bootstrap；旧发布目录完整保留，不回滚或删除真实数据。网页已改成 10 位密码后，回退程序仍能用该密码登录；原版本的登录校验不限制最短长度。
 
 ## 生产变更范围
 

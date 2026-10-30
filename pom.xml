@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.test</groupId>
     <artifactId>blog</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.4</version>
     <!-- 保留可执行 WAR 交付形式，本机由独立 Java 21 运行。 -->
     <packaging>war</packaging>
     <name>personWeb tools</name>

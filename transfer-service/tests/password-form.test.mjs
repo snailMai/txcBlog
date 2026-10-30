@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import { withDeadline } from "../transfer/static/transfer-io.mjs";
 
 const source = (await readFile(new URL("../transfer/static/app.js", import.meta.url), "utf8"))
-  .replace(/^import .*image-clipboard\.mjs.*;\n/m, "");
+  .replace(/^import .*\.mjs.*;\n/gm, "");
 
 async function harness(reply = () => new Response('{"ok":true}')) {
   const nodes = new Map();
@@ -28,6 +29,7 @@ async function harness(reply = () => new Response('{"ok":true}')) {
   }
   const storage = new Map([["snail-transfer-draft-v1", "[]"]]);
   const context = vm.createContext({
+    withDeadline,
     document: { body: { dataset: { base: "/transfer" } }, hidden: false,
       getElementById: node, createElement: () => node(), createDocumentFragment: () => node(),
       querySelectorAll: () => [], addEventListener() {} },

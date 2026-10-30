@@ -1,12 +1,13 @@
 "use strict";
 
 import { copyImageToClipboard, MAX_COPY_BYTES } from "./image-clipboard.mjs";
+import { withDeadline, readHashed, uploadBuffer } from "./transfer-io.mjs";
 
 const $ = (id) => document.getElementById(id);
 const BASE = document.body.dataset.base || "";
 const endpoint = path => BASE + path;
 const state = { csrf: "", authenticated: false, configured: false, localSetup: false,
-  files: [], sending: false, changingPassword: false, deleting: false, kind: "all", next: null, rows: [], search: "", request: 0,
+  files: [], sending: false, preparing: false, changingPassword: false, deleting: false, kind: "all", next: null, rows: [], search: "", request: 0,
   snapshot: "", clientId: "", signature: "", toastTimer: null, loadedMore: false };
 const DEVICE = /Android/i.test(navigator.userAgent) ? "Android" : /Windows/i.test(navigator.userAgent) ? "Windows" : /Mac/i.test(navigator.userAgent) ? "Mac" : "其他设备";
 const QUEUE_KEY = "snail-transfer-draft-v1";
@@ -14,6 +15,7 @@ const CHUNK_SIZE = 8 * 1024 * 1024;
 const FILE_LIMIT = 500000000;
 const copyingImages = new Set();
 const selectedRecords = new Set();
+let sendController = null;
 
 // Only product labels are normalized. User text and filenames remain unchanged.
 function formatUI(value) {
@@ -30,6 +32,21 @@ function el(tag, cls, text, user = false) {
   return node;
 }
 function label(id, value) { $(id).textContent = formatUI(value); }
+function resizeComposer(event) {
+  const input = $("message-text");
+  if (!input.clientWidth) return;
+  const style = getComputedStyle(input);
+  const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  const line = parseFloat(style.lineHeight);
+  const limit = Math.ceil(line * 8 + padding);
+  const scrollTop = input.scrollTop;
+  input.style.height = "auto";
+  const contentHeight = input.scrollHeight;
+  input.style.height = `${Math.min(limit, Math.max(Math.ceil(line + padding), contentHeight))}px`;
+  input.style.overflowY = contentHeight > limit ? "auto" : "hidden";
+  const editingEnd = ["input", "compositionend"].includes(event?.type) && input.selectionStart === input.selectionEnd && input.selectionEnd === input.value.length;
+  input.scrollTop = contentHeight > limit ? (editingEnd ? contentHeight : scrollTop) : 0;
+}
 function bytes(size) {
   if (size < 1000) return `${size} B`;
   if (size < 1000000) return `${(size / 1000).toFixed(1)} KB`;
@@ -49,16 +66,25 @@ async function api(url, options = {}) {
   catch { throw new Error("连接中断，请检查网络或确认 Mac mini 已开机"); }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401 && state.authenticated) {
-      state.authenticated = false; showAuth();
-      state.rows = []; $("history-list").replaceChildren();
-    }
+    handleUnauthorized(response.status);
     const error = new Error(data.error || `请求未完成（${response.status}）`);
     error.status = response.status; throw error;
   }
   return response;
 }
-async function json(url, options = {}) { return (await api(url, options)).json(); }
+function handleUnauthorized(status) {
+  if (status === 401 && state.authenticated) {
+    state.authenticated = false; showAuth();
+    state.rows = []; $("history-list").replaceChildren();
+  }
+}
+async function json(url, { timeoutMs = 30_000, stage = "请求服务器", ...options } = {}) {
+  return withDeadline(async signal => {
+    const response = await api(url, { ...options, signal });
+    try { return await response.json(); }
+    catch (error) { if (error.name === "SyntaxError") throw new Error(`${stage}响应无法识别，请重试`); throw error; }
+  }, { signal: options.signal, timeoutMs, stage });
+}
 function showAuth() {
   $("password-dialog").close(); $("password-form").reset();
   $("confirm-dialog").close(); clearSelection();
@@ -80,9 +106,11 @@ async function boot() {
 }
 async function showWorkspace() {
   $("auth-screen").hidden = true; $("workspace").hidden = false; label("device-label", `来自 ${DEVICE}`);
+  resizeComposer();
   if (!state.files.length) restoreDraft();
   await Promise.all([refreshHistory(), refreshStats()]);
   await readSharedDraft();
+  resizeComposer();
 }
 $("login-form").addEventListener("submit", async (event) => {
   event.preventDefault(); $("login-button").disabled = true; label("auth-error", "");
@@ -101,6 +129,7 @@ $("logout-button").addEventListener("click", async () => {
     await json("/api/logout", { method: "POST" });
     state.authenticated = false; state.rows = []; state.signature = ""; state.files = [];
     $("message-text").value = ""; $("history-list").replaceChildren(); $("attachment-list").replaceChildren();
+    resizeComposer();
     localStorage.removeItem(QUEUE_KEY);
     await clearSharedDrafts(); await boot();
   } catch (error) { toast(error.message, true); }
@@ -139,12 +168,8 @@ $("password-form").addEventListener("submit", async event => {
   }
 });
 
-async function digest(blob) {
-  const hash = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
 async function fingerprint(file) {
-  return digest(new Blob([`${file.name}:${file.size}:`, file.slice(0, 65536), file.slice(Math.max(0, file.size - 65536))]));
+  return (await readHashed(new Blob([`${file.name}:${file.size}:`, file.slice(0, 65536), file.slice(Math.max(0, file.size - 65536))]))).hash;
 }
 function rememberDraft() {
   try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.files.filter(f => f.id).map(({ id, name, size, fingerprint: fp }) => ({ id, name, size, fingerprint: fp })))); }
@@ -159,7 +184,10 @@ function restoreDraft() {
 }
 async function addFiles(files) {
   if (state.sending) return toast("正在发送，请稍后添加文件", true);
-  for (const file of files) {
+  if (state.preparing) return toast("正在读取文件信息，请稍候", true);
+  state.preparing = true; $("send-button").disabled = true; $("choose-files").disabled = true;
+  label("choose-files", "正在读取文件…");
+  try { for (const file of files) {
     if (file.size > FILE_LIMIT) { toast(`“${file.name}”超过单文件 500 MB 上限`, true); continue; }
     const fp = await fingerprint(file);
     const previous = state.files.find(f => f.fingerprint === fp && !f.file);
@@ -168,8 +196,11 @@ async function addFiles(files) {
       if (state.files.length >= 20) { toast("一次最多发送 20 个附件", true); break; }
       state.files.push({ file, name: file.name, size: file.size, fingerprint: fp, progress: 0, status: "待发送", id: null });
     }
+  } }
+  finally {
+    state.preparing = false; $("send-button").disabled = state.sending; $("choose-files").disabled = state.sending;
+    label("choose-files", "＋ 添加文件"); renderQueue();
   }
-  renderQueue();
 }
 function renderQueue() {
   const fragment = document.createDocumentFragment();
@@ -189,32 +220,50 @@ function renderQueue() {
   }
   $("attachment-list").replaceChildren(fragment);
 }
-async function upload(file) {
-  if (!file.file) throw new Error(`请重新选择“${file.name}”后再发送`);
+async function upload(file, signal, allowCommitted) {
+  const statusLabel = value => { file.status = value; renderQueue(); };
   let status;
   if (file.id) {
-    try { status = await json(`/api/uploads/${file.id}`); }
+    statusLabel("正在核对续传进度");
+    try { status = await json(`/api/uploads/${file.id}`, { signal, stage: "核对续传进度" }); }
     catch (error) { if (error.status !== 404) throw error; file.id = null; }
   }
+  if (status?.message_id) {
+    if (allowCommitted) return;
+    throw new Error("该附件已经发送，请查看传输记录，再移除待发送附件");
+  }
+  if (status?.state === "ready") { file.progress = 100; statusLabel("文件已保存，等待提交记录"); return; }
+  if (!file.file) throw new Error(`请重新选择“${file.name}”后再发送`);
   if (!file.id) {
-    status = await json("/api/uploads", { method: "POST", body: JSON.stringify({ name: file.name, size: file.size, fingerprint: file.fingerprint }) });
+    statusLabel("正在创建上传任务");
+    status = await json("/api/uploads", { method: "POST", signal, stage: "创建上传任务", body: JSON.stringify({ name: file.name, size: file.size, fingerprint: file.fingerprint }) });
     file.id = status.id; rememberDraft();
   }
-  if (status.message_id) throw new Error("该附件可能已经发送成功，请先查看传输记录，再移除待发送附件");
   const chunks = Math.ceil(file.size / CHUNK_SIZE);
   for (let index = 0; index < chunks; index++) {
     const block = file.file.slice(index * CHUNK_SIZE, Math.min(file.size, (index + 1) * CHUNK_SIZE));
-    const hash = await digest(block);
+    const { buffer, hash } = await readHashed(block, { signal, onStage: stage => statusLabel(`${stage}（第 ${index + 1}／${chunks} 片）`) });
     if (status.chunks[String(index)] && status.chunks[String(index)] !== hash) throw new Error("选择的文件与已上传内容不一致，请移除后重新添加");
     if (status.state !== "ready" && !status.chunks[String(index)]) {
       for (let attempt = 0; ; attempt++) {
         try {
-          await json(`/api/uploads/${file.id}/chunks/${index}`, { method: "PUT", headers: { "Content-Type": "application/octet-stream", "X-Chunk-SHA256": hash }, body: block });
+          statusLabel(`正在上传第 ${index + 1}／${chunks} 片`);
+          await uploadBuffer(endpoint(`/api/uploads/${file.id}/chunks/${index}`), buffer, { signal, csrf: state.csrf, hash,
+            onProgress: loaded => {
+              file.progress = Math.min(99, Math.round((index * CHUNK_SIZE + loaded) / file.size * 100));
+              statusLabel(loaded >= buffer.byteLength ? "分片已传出，等待服务器确认" : `上传中 ${file.progress}%`);
+            } });
           break;
         } catch (error) {
-          if (attempt >= 2 || (error.status && error.status < 500 && error.status !== 422)) throw error;
-          file.status = "网络不稳定，正在重试"; renderQueue();
-          await new Promise(resolve => setTimeout(resolve, 600 * (attempt + 1)));
+          handleUnauthorized(error.status);
+          if (signal.aborted || error.cancelled) throw error;
+          if (error.status && error.status < 500 && error.status !== 422 && !error.retryable) throw error;
+          statusLabel("上传未获确认，正在核对服务器进度");
+          status = await json(`/api/uploads/${file.id}`, { signal, stage: "核对上传结果" });
+          if (status.chunks[String(index)] === hash) break;
+          if (status.chunks[String(index)]) throw new Error("服务器分片与所选文件不一致，请移除后重新添加");
+          if (attempt >= 2) throw error;
+          statusLabel(`网络不稳定，准备第 ${attempt + 1} 次重试`);
         }
       }
     }
@@ -222,10 +271,13 @@ async function upload(file) {
     file.status = `上传中 ${file.progress}%`; renderQueue();
   }
   file.status = "正在校验并保存"; renderQueue();
-  await json(`/api/uploads/${file.id}/complete`, { method: "POST" });
+  await json(`/api/uploads/${file.id}/complete`, { method: "POST", signal, timeoutMs: 90_000, stage: "服务器校验并保存" });
   file.progress = 100; file.status = "上传完成，正在提交记录"; renderQueue();
 }
 $("choose-files").addEventListener("click", () => $("file-picker").click());
+$("message-text").addEventListener("input", resizeComposer);
+$("message-text").addEventListener("compositionend", resizeComposer);
+window.addEventListener("resize", resizeComposer);
 $("file-picker").addEventListener("change", async event => {
   try { await addFiles(Array.from(event.target.files)); } catch (error) { toast(error.message, true); }
   event.target.value = "";
@@ -247,26 +299,40 @@ window.addEventListener("drop", async event => {
   try { await addFiles(Array.from(event.dataTransfer.files)); } catch (error) { toast(error.message, true); }
 });
 $("send-button").addEventListener("click", async () => {
-  if (state.sending) return;
+  if (state.sending || state.preparing) return;
   const text = $("message-text").value;
   if (!text.trim() && !state.files.length) return toast("请输入文字或添加文件", true);
   state.sending = true; $("send-button").disabled = true; $("choose-files").disabled = true; $("message-text").disabled = true;
-  label("send-button", "正在发送…");
+  label("send-label", "正在发送…"); $("send-button").setAttribute("aria-busy", "true");
+  sendController = new AbortController();
+  const signal = sendController.signal;
+  $("cancel-send").hidden = false;
+  const retrySnapshot = state.clientId && state.snapshot === JSON.stringify({ text, ids: state.files.map(file => file.id) });
+  let submitting = false;
   try {
     for (const file of state.files) {
-      try { file.error = false; await upload(file); }
+      try { file.error = false; await upload(file, signal, retrySnapshot); }
       catch (error) { file.status = error.message; file.error = true; renderQueue(); throw error; }
     }
     const ids = state.files.map(file => file.id);
     const snapshot = JSON.stringify({ text, ids });
     if (state.snapshot !== snapshot) { state.snapshot = snapshot; state.clientId = crypto.randomUUID().replaceAll("-", ""); }
-    await json("/api/messages", { method: "POST", body: JSON.stringify({ client_id: state.clientId, text, device: DEVICE, files: ids }) });
+    submitting = true;
+    for (const file of state.files) { file.status = "正在提交传输记录"; } renderQueue();
+    await json("/api/messages", { method: "POST", signal, stage: "提交记录（结果可能已保存）", body: JSON.stringify({ client_id: state.clientId, text, device: DEVICE, files: ids }) });
     state.files = []; state.snapshot = ""; state.clientId = ""; $("message-text").value = "";
+    resizeComposer();
     rememberDraft(); renderQueue(); toast("已保存，其他设备打开后即可查看");
-    state.loadedMore = false; await Promise.all([refreshHistory(), refreshStats()]);
-  } catch (error) { toast(error.message, true); }
-  finally { state.sending = false; $("send-button").disabled = false; $("choose-files").disabled = false; $("message-text").disabled = false; label("send-button", "发送 ↗"); renderQueue(); }
+    state.loadedMore = false; refreshHistory(); refreshStats().catch(() => connected(false));
+  } catch (error) {
+    if (submitting) {
+      for (const file of state.files) { file.status = "记录提交结果待确认，可点击发送核对重试"; file.error = true; } renderQueue();
+      toast("提交结果尚未确认，内容可能已保存；再次发送会沿用原标识核对重试", true);
+    } else toast(error.message, true);
+  }
+  finally { state.sending = false; sendController = null; $("cancel-send").hidden = true; $("send-button").disabled = false; $("send-button").setAttribute("aria-busy", "false"); $("choose-files").disabled = false; $("message-text").disabled = false; label("send-label", "发送"); renderQueue(); }
 });
+$("cancel-send").addEventListener("click", () => sendController?.abort());
 window.addEventListener("beforeunload", event => { if (state.sending) { event.preventDefault(); event.returnValue = ""; } });
 
 function connected(ok) {
@@ -280,8 +346,9 @@ async function refreshStats() {
   label("storage-label", `${bytes(info.used)} / ${bytes(info.quota)}`);
   $("reserved-label").hidden = !info.reserved; label("reserved-label", `含待发送文件预留 ${bytes(info.reserved)}`);
   label("records-caption", `共 ${info.count} 条`);
-  if (info.used / info.quota >= 0.9) label("composer-hint", "存储空间即将用满，请先备份并删除不需要的内容");
-  else label("composer-hint", "图片保留原图 · 上传时请保持页面打开");
+  const warning = info.used / info.quota >= 0.9;
+  $("composer-warning").hidden = !warning;
+  label("composer-warning", warning ? "存储空间即将用满，请先备份并删除不需要的内容" : "");
 }
 async function refreshHistory(append = false, quiet = false) {
   const query = new URLSearchParams({ q: state.search, kind: state.kind });
@@ -361,9 +428,27 @@ function renderHistory() {
       if (select.checked) selectedRecords.add(record.id); else selectedRecords.delete(record.id);
       updateSelection();
     });
-    top.append(select);
+    const meta = el("div", "record-meta");
+    meta.append(select);
     const time = new Date(record.created * 1000);
-    top.append(el("span", "record-device", `来自 ${record.device}`), el("span", "", "已保存"), el("time", "record-time", new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(time)));
+    meta.append(el("span", "record-device", `来自 ${record.device}`), el("span", "", "已保存"), el("time", "record-time", new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(time)));
+    const actions = el("div", "record-actions");
+    if (record.text) {
+      const copy = el("button", "", "复制文字"); copy.type = "button";
+      copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(record.text); toast("已复制"); } catch { toast("复制受浏览器限制，请选中文字手动复制", true); } }); actions.append(copy);
+    }
+    for (const file of record.files) {
+      const group = el("div", "record-file-actions");
+      if (record.files.length > 1) {
+        const name = el("span", "record-action-name", file.name, true); name.title = file.name; group.append(name);
+      }
+      if (file.mime.startsWith("image/")) group.append(imageCopyButton(file));
+      const download = el("a", "download", "下载"); download.href = endpoint(`/api/files/${file.id}/download`);
+      download.setAttribute("aria-label", `下载 ${file.name}`); group.append(download); actions.append(group);
+    }
+    const remove = el("button", "record-delete", "删除记录"); remove.type = "button";
+    remove.addEventListener("click", () => confirmDelete([record.id])); actions.append(remove);
+    top.append(meta, actions);
     card.append(top);
     if (record.text) card.append(textWithLinks(record.text));
     if (record.files.length) {
@@ -379,21 +464,12 @@ function renderHistory() {
         info.append(el("span", "file-type", ext, true));
         const detail = el("div", "file-detail"); const name = el("span", "file-name", file.name, true); name.title = file.name;
         detail.append(name, el("span", "file-size", bytes(file.size))); info.append(detail);
-        const download = el("a", "download", "↓"); download.href = endpoint(`/api/files/${file.id}/download`); download.setAttribute("aria-label", `下载 ${file.name}`); info.append(download);
         item.append(info);
-        if (file.mime.startsWith("image/")) {
-          const actions = el("div", "file-actions");
-          actions.append(imageCopyButton(file)); item.append(actions);
-        }
         grid.append(item);
       }
       card.append(grid);
     }
-    const actions = el("div", "record-actions");
-    if (record.text) {
-      const copy = el("button", "", "复制文字"); copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(record.text); toast("已复制"); } catch { toast("复制受浏览器限制，请选中文字手动复制", true); } }); actions.append(copy);
-    }
-    const remove = el("button", "", "删除记录"); remove.addEventListener("click", () => confirmDelete([record.id])); actions.append(remove); card.append(actions); fragment.append(card);
+    fragment.append(card);
   }
   $("history-list").replaceChildren(fragment);
   updateSelection();
@@ -490,5 +566,5 @@ async function readSharedDraft() {
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register(endpoint("/sw.js"), { scope: endpoint("/") }).catch(() => { /* Browser upload remains available without installation. */ });
 setInterval(() => { if (state.authenticated && !document.hidden && !state.sending && !state.deleting && !$("confirm-dialog").open) { refreshHistory(false, true); refreshStats().catch(() => connected(false)); } }, 5000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && state.authenticated) refreshHistory(false, true); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.authenticated) { resizeComposer(); refreshHistory(false, true); } });
 boot();

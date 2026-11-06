@@ -12,7 +12,7 @@ const state = { csrf: "", authenticated: false, configured: false, localSetup: f
   pageSize: 5, page: 0, cursors: [null], pageLoading: false, historyTotal: 0, latest: null, historyChanged: false, historyError: "" };
 const DEVICE = /Android/i.test(navigator.userAgent) ? "Android" : /Windows/i.test(navigator.userAgent) ? "Windows" : /Mac/i.test(navigator.userAgent) ? "Mac" : "其他设备";
 const QUEUE_KEY = "snail-transfer-draft-v1";
-const CHUNK_SIZE = 8 * 1024 * 1024;
+const CHUNK_SIZE = 8 * 1024 * 1024; // 旧服务未返回任务分片长度时的兼容值。
 const FILE_LIMIT = 500000000;
 const copyingImages = new Set();
 const selectedRecords = new Set();
@@ -240,9 +240,12 @@ async function upload(file, signal, allowCommitted) {
     status = await json("/api/uploads", { method: "POST", signal, stage: "创建上传任务", body: JSON.stringify({ name: file.name, size: file.size, fingerprint: file.fingerprint }) });
     file.id = status.id; rememberDraft();
   }
-  const chunks = Math.ceil(file.size / CHUNK_SIZE);
+  const chunkSize = status.chunk_size ?? CHUNK_SIZE;
+  if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0 || chunkSize > CHUNK_SIZE)
+    throw new Error("服务器分片参数无效，请刷新后重试");
+  const chunks = Math.ceil(file.size / chunkSize);
   for (let index = 0; index < chunks; index++) {
-    const block = file.file.slice(index * CHUNK_SIZE, Math.min(file.size, (index + 1) * CHUNK_SIZE));
+    const block = file.file.slice(index * chunkSize, Math.min(file.size, (index + 1) * chunkSize));
     const { buffer, hash } = await readHashed(block, { signal, onStage: stage => statusLabel(`${stage}（第 ${index + 1}／${chunks} 片）`) });
     if (status.chunks[String(index)] && status.chunks[String(index)] !== hash) throw new Error("选择的文件与已上传内容不一致，请移除后重新添加");
     if (status.state !== "ready" && !status.chunks[String(index)]) {
@@ -251,7 +254,7 @@ async function upload(file, signal, allowCommitted) {
           statusLabel(`正在上传第 ${index + 1}／${chunks} 片`);
           await uploadBuffer(endpoint(`/api/uploads/${file.id}/chunks/${index}`), buffer, { signal, csrf: state.csrf, hash,
             onProgress: loaded => {
-              file.progress = Math.min(99, Math.round((index * CHUNK_SIZE + loaded) / file.size * 100));
+              file.progress = Math.min(99, Math.round((index * chunkSize + loaded) / file.size * 100));
               statusLabel(loaded >= buffer.byteLength ? "分片已传出，等待服务器确认" : `上传中 ${file.progress}%`);
             } });
           break;

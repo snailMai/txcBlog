@@ -2,11 +2,13 @@
 
 本项目复用 `https://tools.20242233.xyz/Transfer`，无需独立域名。Vue 站点嵌入 `/transfer/?embedded=1`，Caddy 把 `/transfer/*` 原样转发到 `127.0.0.1:8765`；传输服务使用 `--prefix /transfer`。PWA 分享及资源作用域均为 `/transfer/`，不占用工具站根路径。
 
-首次于 2026-10-28 随工具站 v0.7.0 部署，当前传输组件为 v3.3.0，新增记录每页 5／10／20 条分页、匹配总数及全选本页，保留原有传输功能；旧请求不传 `page_size` 时仍默认 30 条，无数据库迁移。实际启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-pagination-20261030-105546/transfer-service/`；使用保留的 `/Users/macminimai/ai/project/snail-transfer/.venv/bin/python`，不从临时测试目录运行。第一次生产密码记录位于专用数据目录的 `access-password.txt`（0600），不会输出到部署日志；后续发布不重新初始化或覆盖密码，网页改密也不会更新首次密码记录。
+首次于 2026-10-28 随工具站 v0.7.0 部署，当前传输组件为 v3.3.1，改为 1 MiB 新分片及按进度计时的超时，保留分页和原有功能。启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-mobile-upload-20261105-230802/transfer-service/`；仍使用原虚拟环境，不依赖临时目录，不重新初始化密码或数据。
 
-本次只恢复传输服务，其他组件不变。新包上级目录的 `sha256.json`、`deployment.json` 记录文件哈希和验证结果；旧启动项备份为 `/Users/macminimai/Library/Application Support/personweb/backups/transfer-pagination-20261030-105546/com.snailmai.transfer.plist`，对应上一版 v3.2.4。回退时先 bootout 传输作业，恢复该启动项，再 bootstrap；旧发布目录完整保留，不回滚或删除真实数据。网页已改成 10 位密码后，回退程序仍能用该密码登录；原版本的登录校验不限制最短长度。
+本次只恢复传输服务，其他组件不变。新包的 `sha256.json`、`deployment.json` 记录哈希及切换核对；旧启动项备份为 `/Users/macminimai/Library/Application Support/personweb/backups/transfer-mobile-upload-20261105-230802/com.snailmai.transfer.plist`。切换须等待旧进程和作业完全退出后再 bootstrap；恢复旧程序前先核对新分片未完成任务，不能回滚或删除真实数据。
 
 ## 生产变更范围
+
+当前 v3.3.1 包为 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-mobile-upload-20261105-230802/transfer-service/`，启动项备份位于运行目录 `backups/transfer-mobile-upload-20261105-230802/`。仅恢复传输作业；其他服务及产物、数据与会话核对未变，不迁移 schema。新分片为 1 MiB，历史 8 MiB 任务继续；回退到旧程序前须核对新 1 MiB 未完成任务，旧程序不认识这种任务，不能直接回滚数据或覆盖上传文件。
 
 部署将新增一个本机传输服务及专用数据目录，发布 Vue 导航入口，并修改 personal-tools 的 Caddy 公开路径清单。已有 Java 工具和 todoist 的端口、待办文件及共享 Cloudflare Tunnel 无需改变。生产部署、首次真实密码初始化、自启动配置须在明确授权后进行，本轮代码接入不等于执行这些操作。
 

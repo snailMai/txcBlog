@@ -109,6 +109,36 @@ test("a stalled upload is aborted even when native timeout events never arrive",
   assert.equal(instances[0].onload, null);
 });
 
+test("continued upload progress can outlast the idle deadline without being aborted", async t => {
+  xhrMock(t, xhr => {
+    let loaded = 0;
+    const timer = setInterval(() => {
+      loaded += 10;
+      xhr.upload.onprogress?.({ loaded });
+      if (loaded === 100) {
+        clearInterval(timer);
+        xhr.status = 200; xhr.responseText = '{"ok":true}'; xhr.onload?.();
+      }
+    }, 5);
+    t.after(() => clearInterval(timer));
+  });
+  assert.deepEqual(await uploadBuffer('/upload', new ArrayBuffer(100), { timeoutMs: 20, maxDurationMs: 200 }), { ok: true });
+});
+
+test("repeated zero progress cannot defeat idle timeout; total duration remains bounded", async t => {
+  let progress = false;
+  const instances = xhrMock(t, xhr => {
+    let loaded = 0;
+    const timer = setInterval(() => { if (progress) loaded++; xhr.upload.onprogress?.({ loaded }); }, 5);
+    t.after(() => clearInterval(timer));
+  });
+  await assert.rejects(uploadBuffer('/upload', new ArrayBuffer(100), { timeoutMs: 15, maxDurationMs: 100 }), /超时/);
+  assert.equal(instances[0].aborted, true);
+  progress = true;
+  await assert.rejects(uploadBuffer('/upload', new ArrayBuffer(100), { timeoutMs: 20, maxDurationMs: 35 }), /超时/);
+  assert.equal(instances[1].aborted, true);
+});
+
 test("cancelling an upload clears handlers and stops the network request", async t => {
   const instances = xhrMock(t, () => {});
   const controller = new AbortController();

@@ -14,6 +14,7 @@ const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 async function harness(t, options = {}) {
   const nodes = new Map(), calls = [], sends = [], readers = [];
   const job = { id: "a".repeat(32), state: "pending", chunks: { ...options.chunks }, message_id: null };
+  if (options.chunkSize !== undefined) job.chunk_size = options.chunkSize;
   const records = new Map();
   const settings = { ...options };
   const windowListeners = new Map();
@@ -208,6 +209,23 @@ test("history refresh cannot keep the button busy after the server confirmed the
   assert.equal(h.state.sending, false);
   assert.equal(h.node("send-button").disabled, false);
   assert.match(h.node("toast").textContent, /已保存/);
+});
+
+test("server-selected 1 MiB chunks preserve the file bytes", async t => {
+  const bytes = new Uint8Array(1024 * 1024 + 17).fill(23);
+  const h = await harness(t, { bytes, chunkSize: 1024 * 1024, deadline: 1000 });
+  await h.send();
+  assert.deepEqual(h.sends.map(xhr => xhr.buffer.byteLength), [1024 * 1024, 17]);
+  assert.deepEqual(Buffer.concat(h.sends.map(xhr => Buffer.from(xhr.buffer))), Buffer.from(bytes));
+  assert.equal(h.records.size, 1);
+});
+
+test("invalid server chunk size fails before transmitting any file", async t => {
+  const h = await harness(t, { chunkSize: 0 });
+  await h.send();
+  assert.equal(h.sends.length, 0);
+  assert.match(h.entry.status, /分片参数无效/);
+  assert.equal(h.state.sending, false);
 });
 
 test("resume keeps the 8 MiB protocol and uploads only missing bytes", async t => {

@@ -18,7 +18,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 FILE_LIMIT = 500_000_000
-CHUNK_SIZE = 8 * 1024 * 1024
+CHUNK_SIZE = 1024 * 1024
+LEGACY_CHUNK_SIZE = 8 * 1024 * 1024
 TEXT_LIMIT = 100_000
 UPLOAD_TTL = 48 * 3600
 ID_PATTERN = re.compile(r"^[a-f0-9]{32}$")
@@ -182,6 +183,18 @@ class Store:
         result = dict(row)
         result["chunks"] = {str(r["idx"]): r["hash"] for r in db.execute(
             "SELECT idx, hash FROM chunks WHERE upload_id=?", (upload_id,))}
+        # 原表保存首片校验值而非长度；核对首片原字节，兼容旧任务且不迁移 schema。
+        result["chunk_size"] = CHUNK_SIZE
+        if result["size"] > CHUNK_SIZE and "0" in result["chunks"]:
+            temporary = self.root / "uploads" / upload_id
+            source = temporary if temporary.exists() else self.root / "files" / upload_id
+            with source.open("rb") as stream:
+                first = stream.read(CHUNK_SIZE)
+                if hashlib.sha256(first).hexdigest() != result["chunks"]["0"]:
+                    first += stream.read(LEGACY_CHUNK_SIZE - CHUNK_SIZE)
+                    if hashlib.sha256(first).hexdigest() != result["chunks"]["0"]:
+                        raise Problem("已确认的分片内容异常，请核对原文件", 409)
+                    result["chunk_size"] = LEGACY_CHUNK_SIZE
         return result
 
     def begin(self, name, size, fingerprint):
@@ -219,10 +232,17 @@ class Store:
             upload = self.get_upload(upload_id, db)
             if upload["state"] != "pending":
                 raise Problem("上传已完成，请刷新任务状态", 409)
-            count = math.ceil(upload["size"] / CHUNK_SIZE)
+            chunk_size = upload["chunk_size"]
+            if not upload["chunks"]:
+                if index != 0:
+                    raise Problem("请先上传首个分片", 409)
+                if len(data) not in {min(upload["size"], CHUNK_SIZE), min(upload["size"], LEGACY_CHUNK_SIZE)}:
+                    raise Problem("分片大小不正确")
+                chunk_size = len(data) or CHUNK_SIZE
+            count = math.ceil(upload["size"] / chunk_size)
             if not 0 <= index < count:
                 raise Problem("分片序号超出范围")
-            expected = min(CHUNK_SIZE, upload["size"] - index * CHUNK_SIZE)
+            expected = min(chunk_size, upload["size"] - index * chunk_size)
             if len(data) != expected:
                 raise Problem("分片大小不正确")
             previous = upload["chunks"].get(str(index))
@@ -231,7 +251,7 @@ class Store:
                     raise Problem("重新选择的文件与已上传内容不一致", 409)
                 return
             with (self.root / "uploads" / upload_id).open("r+b") as target:
-                target.seek(index * CHUNK_SIZE)
+                target.seek(index * chunk_size)
                 target.write(data)
                 target.flush()
                 os.fsync(target.fileno())
@@ -242,7 +262,8 @@ class Store:
             upload = self.get_upload(upload_id, db)
             if upload["state"] == "ready":
                 return upload
-            if len(upload["chunks"]) != math.ceil(upload["size"] / CHUNK_SIZE):
+            chunk_size = upload["chunk_size"]
+            if len(upload["chunks"]) != math.ceil(upload["size"] / chunk_size):
                 raise Problem("文件尚未上传完整", 409)
             temporary = self.root / "uploads" / upload_id
             final = self.root / "files" / upload_id
@@ -250,8 +271,8 @@ class Store:
             if not source.exists() or source.stat().st_size != upload["size"]:
                 raise Problem("文件大小校验失败，请重新上传", 422)
             with source.open("rb") as target:
-                for index in range(math.ceil(upload["size"] / CHUNK_SIZE)):
-                    if hashlib.sha256(target.read(CHUNK_SIZE)).hexdigest() != upload["chunks"][str(index)]:
+                for index in range(math.ceil(upload["size"] / chunk_size)):
+                    if hashlib.sha256(target.read(chunk_size)).hexdigest() != upload["chunks"][str(index)]:
                         raise Problem("文件完整性校验失败，请重新上传", 422)
             file_hash = sha256_file(source)
             if source != final:

@@ -54,23 +54,35 @@ export async function readHashed(blob, { signal, timeoutMs = 30_000, onStage = (
   return { buffer, hash };
 }
 
-export function uploadBuffer(url, buffer, { signal, csrf, hash, timeoutMs = 60_000, onProgress = () => {} } = {}) {
+export function uploadBuffer(url, buffer, { signal, csrf, hash, timeoutMs = 60_000, maxDurationMs = 300_000, onProgress = () => {} } = {}) {
   return withDeadline(localSignal => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let idleTimer, lastLoaded = 0;
     const abort = () => xhr.abort();
     const finish = (error, value) => {
+      clearTimeout(idleTimer);
       localSignal.removeEventListener("abort", abort);
       xhr.onload = xhr.onerror = xhr.ontimeout = xhr.onabort = null;
       xhr.upload.onprogress = null;
-      if (error) reject(error); else resolve(value);
+      if (error) { reject(error); xhr.abort(); } else resolve(value);
+    };
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        const error = new Error("上传分片超时，请重试"); error.timeout = true; finish(error);
+      }, timeoutMs);
     };
     xhr.open("PUT", url);
     xhr.withCredentials = true;
-    xhr.timeout = timeoutMs;
+    xhr.timeout = maxDurationMs;
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
     xhr.setRequestHeader("X-CSRF-Token", csrf);
     xhr.setRequestHeader("X-Chunk-SHA256", hash);
-    xhr.upload.onprogress = event => { if (!localSignal.aborted) onProgress(event.loaded, buffer.byteLength); };
+    xhr.upload.onprogress = event => {
+      if (localSignal.aborted) return;
+      if (event.loaded > lastLoaded) { lastLoaded = event.loaded; resetIdle(); }
+      onProgress(event.loaded, buffer.byteLength);
+    };
     xhr.onload = () => {
       let data;
       try { data = JSON.parse(xhr.responseText); }
@@ -91,7 +103,8 @@ export function uploadBuffer(url, buffer, { signal, csrf, hash, timeoutMs = 60_0
     xhr.ontimeout = () => { const error = new Error("上传分片超时，请重试"); error.timeout = true; finish(error); };
     xhr.onabort = () => finish(new Error("上传已停止"));
     localSignal.addEventListener("abort", abort, { once: true });
+    resetIdle();
     try { xhr.send(buffer); }
     catch { finish(new Error("浏览器无法发送文件，请重试")); }
-  }), { signal, timeoutMs, stage: "上传分片" });
+  }), { signal, timeoutMs: maxDurationMs, stage: "上传分片" });
 }

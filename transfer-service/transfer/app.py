@@ -14,7 +14,7 @@ from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.security import check_password_hash
 
-from .storage import CHUNK_SIZE, Problem, Store
+from .storage import LEGACY_CHUNK_SIZE, Problem, Store
 
 
 def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False, prefix=""):
@@ -33,7 +33,7 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
     app.extensions["store"] = store
     app.config.update(
         TESTING=testing, SECRET_KEY=store.secret, PUBLIC_ORIGIN=origin,
-        MAX_CONTENT_LENGTH=CHUNK_SIZE + 1024 * 1024,
+        MAX_CONTENT_LENGTH=LEGACY_CHUNK_SIZE + 1024 * 1024,
         MAX_FORM_MEMORY_SIZE=1024 * 1024,
         SESSION_COOKIE_NAME="snail_session", SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=parsed.scheme == "https", SESSION_COOKIE_SAMESITE="Strict",

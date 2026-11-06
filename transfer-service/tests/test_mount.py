@@ -91,6 +91,18 @@ class MountedTransferTests(unittest.TestCase):
         self.assertEqual(self.request("/api/logout", "POST", headers=headers).status_code, 200)
         self.assertEqual(self.request("/api/messages").status_code, 401)
 
+    def test_old_8mib_client_request_remains_accepted_over_http(self):
+        headers = self.login()
+        data = b'legacy' * ((8 * 1024 * 1024) // 6 + 1)
+        data = data[:8 * 1024 * 1024]
+        upload = self.request('/api/uploads', 'POST', headers=headers,
+                              json={'name': 'legacy.bin', 'size': len(data) + 17, 'fingerprint': 'a' * 64})
+        uid = upload.json['id']
+        response = self.request(f'/api/uploads/{uid}/chunks/0', 'PUT', data=data,
+            headers={**headers, 'Content-Type': 'application/octet-stream', 'X-Chunk-SHA256': hashlib.sha256(data).hexdigest()})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.request(f'/api/uploads/{uid}').json['chunk_size'], 8 * 1024 * 1024)
+
     def test_rejects_invalid_prefix_before_creating_storage(self):
         for prefix in ("/", "/../x", "//transfer", "transfer", "/transfer/", "/transfer?x"):
             with self.assertRaises(ValueError):

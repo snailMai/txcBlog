@@ -17,7 +17,7 @@ from werkzeug.security import check_password_hash
 from .storage import LEGACY_CHUNK_SIZE, Problem, Store
 
 
-def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False, prefix=""):
+def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False, prefix="", additional_origins=None):
     # 固定服务端挂载点；不能接受任意客户端路径，也不信任转发前缀头。
     if not isinstance(prefix, str) or (prefix and not re.fullmatch(r"(?:/[A-Za-z0-9_-]+)+", prefix)):
         raise ValueError("挂载路径须为 /transfer 形式，不含尾斜杠、查询或相对路径")
@@ -29,6 +29,21 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
     local = parsed.hostname in ("127.0.0.1", "localhost", "::1")
     if not local and parsed.scheme != "https":
         raise ValueError("外部访问必须使用 HTTPS")
+    # 每个入口独立保持同源校验；额外入口不能降低主入口的 Cookie 安全级别。
+    origins_by_host = {parsed.netloc.lower(): origin}
+    if additional_origins and parsed.scheme != "https":
+        raise ValueError("配置额外入口时主入口必须使用 HTTPS")
+    for extra in additional_origins or ():
+        extra = extra.rstrip("/")
+        candidate = urlsplit(extra)
+        if (candidate.scheme != "https" or not candidate.hostname or candidate.username is not None
+                or candidate.path or candidate.query or candidate.fragment or "*" in candidate.netloc
+                or candidate.port == 0):
+            raise ValueError("额外入口必须是完整的 HTTPS 源地址，不包含路径、通配符或凭据")
+        host = candidate.netloc.lower()
+        if host in origins_by_host:
+            raise ValueError("访问入口的 Host 不能重复")
+        origins_by_host[host] = extra
     store = Store(directory or os.environ.get("TRANSFER_DATA", "data"), quota)
     app.extensions["store"] = store
     app.config.update(
@@ -51,12 +66,13 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
 
     @app.before_request
     def protect():
-        if request.host.lower() != parsed.netloc.lower():
+        expected_origin = origins_by_host.get(request.host.lower())
+        if expected_origin is None:
             raise Problem("访问地址不匹配，请使用配置的入口地址", 400)
         if request.path == "/share-target":
             return None  # Only the service worker receives share data; no server mutation.
         if request.method not in ("GET", "HEAD", "OPTIONS"):
-            if request.headers.get("Origin") != origin:
+            if request.headers.get("Origin") != expected_origin:
                 raise Problem("请求来源校验失败，请重新打开页面", 403)
             expected = session.get("csrf", "")
             token = request.headers.get("X-CSRF-Token", "")

@@ -15,6 +15,7 @@ def main():
     run.add_argument("--data", default="data")
     run.add_argument("--port", type=int, default=8765)
     run.add_argument("--origin", default=os.environ.get("TRANSFER_ORIGIN"))
+    run.add_argument("--additional-origin", action="append", default=[], help="额外 HTTPS 入口，可重复指定；每个入口仍须同源")
     run.add_argument("--prefix", default="", help="工具站挂载路径，例如 /transfer；缺省为独立根路径")
     run.add_argument("--quota-gb", type=float, default=20)
     initialize = commands.add_parser("init", help="在终端设置首次访问密码")
@@ -33,7 +34,8 @@ def main():
                 parser.error("端口或配额无效")
             from waitress import serve
             from .app import create_app
-            app = create_app(args.data, args.origin or f"http://127.0.0.1:{args.port}", int(args.quota_gb * 1_000_000_000), prefix=args.prefix)
+            app = create_app(args.data, args.origin or f"http://127.0.0.1:{args.port}", int(args.quota_gb * 1_000_000_000), prefix=args.prefix,
+                             additional_origins=args.additional_origin)
             if not app.extensions["store"].configured() and not app.config["PUBLIC_ORIGIN"].startswith("http://127.0.0.1:"):
                 raise Problem("请先执行 init，在本机设置访问密码后再开放域名")
             print("访问入口：" + app.config["PUBLIC_ORIGIN"] + args.prefix + "/", flush=True)

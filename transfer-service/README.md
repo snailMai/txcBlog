@@ -1,6 +1,8 @@
 # 蜗牛传送
 
-当前源码版本为 `v3.3.2`，优化嵌入工具站的设置条布局、批量删除按钮禁用态、记录状态徽章、跨年时间显示和缩略图限高；传输组件部署状态见 ROADMAP。属于 personal-tools 的 V3 电脑手机同步阶段，保留记录分页、紧凑发送按钮、自适应输入区、批量删除、图片复制和网页改密。
+当前源码版本为 `v3.4.0`，支持在原 HTTPS 域名之外配置额外 HTTPS IP 入口，共用单实例与原数据，按 Host 对应 Origin 校验。保留 v3.3.2 的界面改进及现有传输功能；部署和实机状态见 ROADMAP。
+
+新增参数示例：`--origin https://tools.20242233.xyz --additional-origin https://192.168.3.195:8443 --additional-origin https://192.168.3.159:8443`。每个入口独立登录，Cookie 保持 Secure／HttpOnly／SameSite，禁止跨入口混用 Origin。主入口为 HTTP 时不能配置额外入口，不接受通配符或任意客户端来源。局域网证书安装和运行入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
 
 Windows／安卓共用的私人传输空间，支持文字、图片、文件和历史记录。数据保存在当前 Mac mini；两端通过工具站入口访问，原文件按需下载。文件下载后的本地修改不会回传。
 

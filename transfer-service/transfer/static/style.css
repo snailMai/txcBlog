@@ -35,3 +35,44 @@
 @media(max-width:700px) { .sidebar-bottom { flex-wrap: wrap; justify-content: flex-end; gap: 4px 12px; } }
 
 @media(max-width:700px) { .record-meta { width: 100%; gap: 6px; } .record-actions { width: 100%; } .record-actions button, .record-actions .download { min-height: 36px; padding: 7px 9px; font-size: 11px; } .record-action-name { max-width: 90px; } .image-link { width: 96px; height: 72px; } .file-card { gap: 10px; } }
+
+/* 嵌入模式：底部设置条——存储用量与账户操作收成一个紧凑卡片，不再纵向散落 */
+.embedded .sidebar-bottom {
+  order: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 28px auto 0;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.embedded .sidebar-bottom .storage-heading { display: flex; width: auto; margin: 0; gap: 8px; font-weight: 600; color: #697d70; }
+.embedded .sidebar-bottom progress { width: 140px; height: 6px; flex-shrink: 0; }
+.embedded .sidebar-bottom p { margin: 0; line-height: 1.4; }
+.embedded .sidebar-bottom #reserved-label { flex-basis: 100%; order: 5; }
+.embedded .sidebar-bottom .text-button { display: inline-block; margin: 0 0 0 auto; padding: 6px 0; }
+.embedded .sidebar-bottom .text-button ~ .text-button { margin-left: 16px; }
+@media(max-width:700px) {
+  .embedded .sidebar-bottom { margin-top: 20px; padding: 10px 14px; gap: 4px 12px; justify-content: flex-end; }
+  /* 窄屏嵌入恢复压缩版容量数字（进度条、预留说明仍隐藏）；隐藏标题与百分比 */
+  .embedded .sidebar-bottom .storage-heading { display: none; }
+  .embedded .sidebar-bottom #storage-label { display: block; flex-basis: 100%; }
+  .embedded .sidebar-bottom #storage-label::before { content: "存储 "; }
+  .embedded .sidebar-bottom .text-button { margin-left: 0; padding: 6px 0; font-size: 11px; }
+}
+
+/* 批量删除：未选择时降为幽灵按钮，避免满红色误导可点击 */
+#batch-delete-button:disabled { background: transparent; color: #b98f8b; border: 1px solid var(--border); box-shadow: none; cursor: default; opacity: 1; }
+
+/* 记录缩略图：限高并随图片宽高比自适应，避免固定框压扁长图或撑高卡片；min-height 保留加载前的框 */
+.image-link { height: auto; min-height: 72px; max-height: 150px; }
+.image-link img { width: 100%; height: auto; max-height: 150px; object-fit: contain; display: block; }
+@media(max-width:700px) {
+  .image-link { max-height: 110px; }
+  .image-link img { max-height: 110px; }
+}

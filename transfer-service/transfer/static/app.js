@@ -473,7 +473,17 @@ function renderHistory() {
     const meta = el("div", "record-meta");
     meta.append(select);
     const time = new Date(record.created * 1000);
-    meta.append(el("span", "record-device", `来自 ${record.device}`), el("span", "", "已保存"), el("time", "record-time", new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(time)));
+    meta.append(el("span", "record-device", `来自 ${record.device}`));
+    // 状态位保留给非终态（如保存失败、待确认）；当前记录均为已保存，不逐条渲染固定徽章。
+    if (record.state && record.state !== "saved") meta.append(el("span", "", record.state));
+    // 同年记录用短格式，跨年记录带年份；悬停显示完整日期。
+    const sameYear = time.getFullYear() === new Date().getFullYear();
+    const stamp = el("time", "record-time", new Intl.DateTimeFormat("zh-CN", sameYear
+      ? { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }
+      : { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(time));
+    stamp.dateTime = time.toISOString();
+    stamp.title = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(time);
+    meta.append(stamp);
     const actions = el("div", "record-actions");
     if (record.text) {
       const copy = el("button", "", "复制文字"); copy.type = "button";

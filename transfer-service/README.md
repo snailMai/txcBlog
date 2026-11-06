@@ -1,6 +1,6 @@
 # 蜗牛传送
 
-当前源码版本为 `v3.3.1`，修复慢速上传的分片超时；传输组件部署状态见 ROADMAP。属于 personal-tools 的 V3 电脑手机同步阶段，保留记录分页、紧凑发送按钮、自适应输入区、批量删除、图片复制和网页改密。
+当前源码版本为 `v3.3.2`，优化嵌入工具站的设置条布局、批量删除按钮禁用态、记录状态徽章、跨年时间显示和缩略图限高；传输组件部署状态见 ROADMAP。属于 personal-tools 的 V3 电脑手机同步阶段，保留记录分页、紧凑发送按钮、自适应输入区、批量删除、图片复制和网页改密。
 
 Windows／安卓共用的私人传输空间，支持文字、图片、文件和历史记录。数据保存在当前 Mac mini；两端通过工具站入口访问，原文件按需下载。文件下载后的本地修改不会回传。
 
@@ -30,7 +30,7 @@ TRANSFER_PYTHON=/Users/macminimai/ai/project/snail-transfer/.venv/bin/python sh 
 .venv/bin/python -m transfer run --origin https://tools.20242233.xyz --prefix /transfer --port 8765 --data '/Users/macminimai/Library/Application Support/personweb/transfer-data'
 ```
 
-传输服务已部署 v3.3.1，修复慢速上传的分片超时，外层工具站及 Java 不变。入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 `transfer-data`。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见 [部署说明](/Users/macminimai/ai/project/personal-tools/back-end/blog/transfer-service/deploy/README.md)，验收状态见 ROADMAP。
+传输服务已部署 v3.3.2，优化嵌入设置条、批量删除禁用态、记录状态徽章、跨年时间与缩略图限高；外层工具站及 Java 不变。入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 `transfer-data`。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见 [部署说明](/Users/macminimai/ai/project/personal-tools/back-end/blog/transfer-service/deploy/README.md)，验收状态见 ROADMAP。
 
 ## 使用和数据
 

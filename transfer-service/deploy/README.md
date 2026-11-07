@@ -2,13 +2,17 @@
 
 本项目复用 `https://tools.20242233.xyz/Transfer`，无需独立域名。Vue 站点嵌入 `/transfer/?embedded=1`，Caddy 把 `/transfer/*` 原样转发到 `127.0.0.1:8765`；传输服务使用 `--prefix /transfer`。PWA 分享及资源作用域均为 `/transfer/`，不占用工具站根路径。
 
-当前传输组件为 v4.1.0，新增图片弹窗及缩放，保留 todoist 共享登录、原域名和局域网 HTTPS 入口。启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-image-preview-20261107-110344/transfer-service/`；仍使用原虚拟环境，不依赖临时目录，不重新初始化密码或数据。客户端 CA 安装与局域网入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
+当前传输组件为 v4.1.3，登录卡标题区改为横排（图标在左，英文眉标＋中文标题在右），保留 todoist 共享登录、原域名和局域网 HTTPS 入口。启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-login-header-20261107-130500/transfer-service/`；仍使用原虚拟环境，不依赖临时目录，不重新初始化密码或数据。客户端 CA 安装与局域网入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
+
+v4.1.3 只切换传输作业，包为上述 transfer-login-header-20261107-130500，备份位于 personweb 运行目录同名 backups/ 下（backups/transfer-login-header-20261107-130500 存有旧启动项）；运行目录 transfer-current-release.json 记录组件来源。回退只 bootout 传输作业、等待退出、恢复备份 plist 并 bootstrap，不回滚数据或共享登录配置，不重启 Vue、Caddy、Java、网关或隧道。
 
 v3.4.0 首次发布时新增的 `com.snailmai.tools-lan` 已迁出并停用；当前 LAN 入口由独立项目 `local-web-gateway` 的用户作业管理，原 CA、8443 地址及传输来源参数保留。传输进程和数据未随网关迁移，本站发布不隐式重启共享入口；当前维护与回退入口见宿主 `deploy/LAN.md`。
 
 ## 生产变更范围
 
 共享鉴权基线及首次配套发布备份见宿主 `deploy/README.md` 的 v4.0.0 记录；后续传输定点发布仍须兼容该鉴权链。旧匿名 Caddy 不能单独恢复，故障时保持任务接口关闭，不回滚真实密码、会话、传输或任务数据。局域网代理和 CA 已独立到 `/Users/macminimai/Library/Application Support/local-web-gateway`，它同时服务 learn／kb；本站回退不能停掉共享作业。
+
+v4.1.3 同时发布工具站前端 todoist 登录卡（横排双语头部、与传输同一绿色按钮），前端发布包为宿主 `deploy/releases/todoist-login-unify2-20261107-130900/`；其余组件未动。
 
 v4.1.0 只切换传输作业，包为上述 transfer-image-preview-20261107-110344，备份位于 personweb 运行目录同名 backups/ 下；运行目录 transfer-current-release.json 记录组件来源。回退只 bootout 传输作业、等待退出、恢复备份 plist 并 bootstrap，不回滚数据或共享登录配置，不重启 Vue、Caddy、Java、网关或隧道。
 

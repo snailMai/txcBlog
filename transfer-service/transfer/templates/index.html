@@ -15,9 +15,13 @@
 <body data-base="{{ request.script_root }}" class="{{ 'embedded' if embedded else '' }}">
   <div id="auth-screen" class="auth-screen">
     <section class="auth-card">
-      <img class="brand-icon" src="{{ url_for('static', filename='icon.svg') }}" width="56" height="56" alt="蜗牛传送">
-      <p class="eyebrow">YOUR PERSONAL TRANSFER SPACE</p>
-      <h1>自己的设备，随手传。</h1>
+      <div class="auth-head">
+        <img class="brand-icon" src="{{ url_for('static', filename='icon.svg') }}" width="40" height="40" alt="蜗牛传送">
+        <div class="auth-titles">
+          <p class="eyebrow">YOUR PERSONAL TRANSFER SPACE</p>
+          <h1>自己的设备，随手传。</h1>
+        </div>
+      </div>
       <p id="auth-description" class="muted">正在连接你的传输空间……</p>
       <form id="login-form" hidden>
         <label for="password">访问密码</label>

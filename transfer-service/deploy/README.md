@@ -2,13 +2,15 @@
 
 本项目复用 `https://tools.20242233.xyz/Transfer`，无需独立域名。Vue 站点嵌入 `/transfer/?embedded=1`，Caddy 把 `/transfer/*` 原样转发到 `127.0.0.1:8765`；传输服务使用 `--prefix /transfer`。PWA 分享及资源作用域均为 `/transfer/`，不占用工具站根路径。
 
-首次于 2026-10-28 随工具站 v0.7.0 部署，当前传输组件为 v3.4.0，增加原域名及局域网 IP 的多个 HTTPS 入口，保留原功能。启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/lan-direct-20261106-215547/transfer-service/`；仍使用原虚拟环境，不依赖临时目录，不重新初始化密码或数据。客户端 CA 安装与局域网入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
+当前传输组件为 v4.1.0，新增图片弹窗及缩放，保留 todoist 共享登录、原域名和局域网 HTTPS 入口。启动项位于 `/Users/macminimai/Library/LaunchAgents/com.snailmai.transfer.plist`，WorkingDirectory 指向 `/Users/macminimai/ai/project/personal-tools/deploy/releases/transfer-image-preview-20261107-110344/transfer-service/`；仍使用原虚拟环境，不依赖临时目录，不重新初始化密码或数据。客户端 CA 安装与局域网入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
 
-本次只恢复传输服务，并新增用户作业 `com.snailmai.tools-lan`，公网 Caddy、Java 和共享隧道不变。包内 `sha256.json`、`deployment.json` 记录哈希及切换核对；旧传输启动项备份为 `/Users/macminimai/Library/Application Support/personweb/backups/lan-direct-20261106-215547/com.snailmai.transfer.plist`。切换须等待旧进程和作业完全退出后再 bootstrap，不回滚或删除真实数据。
+v3.4.0 首次发布时新增的 `com.snailmai.tools-lan` 已迁出并停用；当前 LAN 入口由独立项目 `local-web-gateway` 的用户作业管理，原 CA、8443 地址及传输来源参数保留。传输进程和数据未随网关迁移，本站发布不隐式重启共享入口；当前维护与回退入口见宿主 `deploy/LAN.md`。
 
 ## 生产变更范围
 
-当前 v3.4.0 包为 `/Users/macminimai/ai/project/personal-tools/deploy/releases/lan-direct-20261106-215547/transfer-service/`，新增代理仅绑定 `192.168.3.195:8443` 和 `192.168.3.159:8443` 并转发原工具站。系统信任未自动安装，CA 私钥只在私有运行目录，网页只提供 CA 公钥。原有服务产物、数据与会话核对未变，不迁移 schema。回退时先停止 LAN 作业，再恢复上述旧传输启动项；v3.3.2 存储格式兼容，不回滚数据。
+共享鉴权基线及首次配套发布备份见宿主 `deploy/README.md` 的 v4.0.0 记录；后续传输定点发布仍须兼容该鉴权链。旧匿名 Caddy 不能单独恢复，故障时保持任务接口关闭，不回滚真实密码、会话、传输或任务数据。局域网代理和 CA 已独立到 `/Users/macminimai/Library/Application Support/local-web-gateway`，它同时服务 learn／kb；本站回退不能停掉共享作业。
+
+v4.1.0 只切换传输作业，包为上述 transfer-image-preview-20261107-110344，备份位于 personweb 运行目录同名 backups/ 下；运行目录 transfer-current-release.json 记录组件来源。回退只 bootout 传输作业、等待退出、恢复备份 plist 并 bootstrap，不回滚数据或共享登录配置，不重启 Vue、Caddy、Java、网关或隧道。
 
 部署将新增一个本机传输服务及专用数据目录，发布 Vue 导航入口，并修改 personal-tools 的 Caddy 公开路径清单。已有 Java 工具和 todoist 的端口、待办文件及共享 Cloudflare Tunnel 无需改变。生产部署、首次真实密码初始化、自启动配置须在明确授权后进行，本轮代码接入不等于执行这些操作。
 

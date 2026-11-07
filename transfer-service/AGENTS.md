@@ -22,6 +22,7 @@
 - 传输记录默认每页 5 条，可选 5／10／20 条，沿用游标查询、翻页替换列表。搜索／类型／每页条数改变、手动刷新及发送成功回到首页；旧页或已有勾选时轮询只提示更新，不重排当前列表。空末页回到上一有效页；旧接口不传每页条数时保留 30 条默认值，不改数据结构。
 - 批量删除只接受用户明确勾选的记录 ID；全选仅覆盖本页，翻页、搜索、类型、每页条数及刷新时清空勾选。确认时冻结目标集合，服务端重试不得扩大删除范围；只用隔离合成记录测试删除，不试删生产历史。
 - 记录采用紧凑卡片，来源／状态／时间集中展示，操作位于卡片顶部右侧：复制文字、各附件的复制图片／下载、最后删除记录。图片下载统一显示「下载」，多附件明确对应文件；窄屏允许操作区在正文上方换行，不隐藏原有操作或撑出横向滚动。
+- 图片缩略图点击后在当前页面弹窗预览原图，不新开页签；初始适应窗口，提供放大／缩小、适应窗口、100% 和关闭，支持滚轮、双指缩放及放大后拖动。复用现有鉴权原图接口，按需加载，关闭或登录失效时取消请求并释放图片资源；迟到结果不得覆盖新预览。保留列表位置、复制及原文件下载，不引入第三方图库或修改图片数据。
 - 发送输入框按文字及实际换行自动伸缩，空白从一行起（占位文字按宽度自然换行）、最多约 8 行后内部滚动；程序填入、删空和成功发送后同步尺寸，失败保留内容。底部不保留常驻提示栏，仅在容量达到 90% 时显示容量警告。
 - 同源请求、CSRF 防护和安全 Cookie 为必需项；外部部署必须 HTTPS，禁止信任客户端提供的转发身份头。
 - `--additional-origin` 可重复配置额外 HTTPS 入口，仅在主入口同样为 HTTPS 时启用。每个 Host 精确匹配其自己的 Origin；主入口与 IP 入口均保留 CSRF、Secure／HttpOnly／SameSite Cookie，不允许通配来源或跨入口写入，不增加第二个数据实例。
@@ -35,12 +36,12 @@
 
 当前宿主已确定为 Mac mini，入口复用 personal-tools 的 `https://tools.20242233.xyz/Transfer`。传输服务保留独立实现，以 `--prefix /transfer` 挂载，站内同源嵌入 `/transfer/?embedded=1`；独立运行不带前缀的使用方式仍兼容。
 
-挂载模式中 Cookie、静态文件、API、manifest、分享目标和 Service Worker 必须局限于挂载路径，不能接管站点根路径；只允许同源嵌入，独立根路径模式继续禁止嵌入。运行数据不与 todoist Markdown 混用，不改共享隧道或生产服务，未授权时不初始化真实密码。
+挂载模式中的静态文件、API、manifest、分享目标和 Service Worker 限制在挂载路径；只允许同源嵌入，独立模式继续禁止嵌入。为用户授权的 todoist 共享登录，Cookie Path 使用本站根路径，仍为 host-only、Secure／HttpOnly／SameSite，兼容并清理旧挂载路径 Cookie。鉴权端点只校验会话及 Caddy 提供的原始方法，写操作还须精确 Origin 和 CSRF；不转发业务请求或记录正文。任务仍由 Java 操作 Markdown，认证服务不保存第二套任务数据，不修改真实密码或撤销现有有效会话。
 
 先读 `ROADMAP.md` 判断状态，运行和数据操作以 `README.md` 为准。部署参考 `deploy/README.md`。
 
 按用户持续授权，修改／修复通过必要验证后直接定点部署传输组件，遵循上级 AGENTS.md 的发布范围及回退要求；不据此提交或推送 Git，若当次要求只读或暂缓则停止在相应边界。
 
-必要检查：`python -m unittest discover -s tests -v`、`node --check transfer/static/app.js`、`node --check transfer/static/transfer-io.mjs`、`node --check transfer/static/image-clipboard.mjs`、`node --check transfer/static/sw.js`、`node --test tests/*.test.*`。涉及前端流程时进行桌面和窄屏浏览器验证；安卓系统分享、锁屏行为及跨网络必须明确区分实测与待验证。
+必要检查：`python -m unittest discover -s tests -v`、`node --check transfer/static/app.js`、`node --check transfer/static/transfer-io.mjs`、`node --check transfer/static/image-clipboard.mjs`、`node --check transfer/static/image-preview.mjs`、`node --check transfer/static/sw.js`、`node --test tests/*.test.*`。涉及前端流程时进行桌面和窄屏浏览器验证；安卓系统分享、锁屏行为及跨网络必须明确区分实测与待验证。
 
 不得在未确定宿主、访问方式和数据位置前修改系统配置或安装全局依赖。不得提交、推送或公开发布，除非用户明确要求。

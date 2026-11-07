@@ -2,6 +2,7 @@
 
 import { copyImageToClipboard, MAX_COPY_BYTES } from "./image-clipboard.mjs";
 import { withDeadline, readHashed, uploadBuffer } from "./transfer-io.mjs";
+import { createImagePreview } from "./image-preview.mjs";
 
 const $ = (id) => document.getElementById(id);
 const BASE = document.body.dataset.base || "";
@@ -12,6 +13,14 @@ const state = { csrf: "", authenticated: false, configured: false, localSetup: f
   pageSize: 5, page: 0, cursors: [null], pageLoading: false, historyTotal: 0, latest: null, historyChanged: false, historyError: "" };
 const DEVICE = /Android/i.test(navigator.userAgent) ? "Android" : /Windows/i.test(navigator.userAgent) ? "Windows" : /Mac/i.test(navigator.userAgent) ? "Mac" : "其他设备";
 const QUEUE_KEY = "snail-transfer-draft-v1";
+let imagePreview = null;
+function previewImage(file, trigger) {
+  imagePreview ||= createImagePreview({ load: async (file, signal) => {
+    const response = await api(`/api/files/${file.id}/preview`, { signal });
+    return response.blob();
+  } });
+  return imagePreview.open(file, trigger);
+}
 const CHUNK_SIZE = 8 * 1024 * 1024; // 旧服务未返回任务分片长度时的兼容值。
 const FILE_LIMIT = 500000000;
 const copyingImages = new Set();
@@ -87,6 +96,7 @@ async function json(url, { timeoutMs = 30_000, stage = "请求服务器", ...opt
   }, { signal: options.signal, timeoutMs, stage });
 }
 function showAuth() {
+  imagePreview?.close();
   $("password-dialog").close(); $("password-form").reset();
   $("confirm-dialog").close(); clearSelection();
   $("workspace").hidden = true; $("auth-screen").hidden = false;
@@ -508,7 +518,8 @@ function renderHistory() {
       for (const file of record.files) {
         const item = el("div", "file-card");
         if (file.thumb_size) {
-          const preview = el("a", "image-link"); preview.href = endpoint(`/api/files/${file.id}/preview`); preview.target = "_blank"; preview.rel = "noopener"; preview.setAttribute("aria-label", `查看原图：${file.name}`);
+          const preview = el("button", "image-link"); preview.type = "button"; preview.setAttribute("aria-label", `查看原图：${file.name}`);
+          preview.addEventListener("click", () => previewImage(file, preview));
           const image = el("img"); image.src = endpoint(`/api/files/${file.id}/thumbnail`); image.alt = file.name; image.loading = "lazy"; preview.append(image); item.append(preview);
         }
         const info = el("div", "file-info");

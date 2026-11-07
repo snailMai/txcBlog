@@ -1,6 +1,6 @@
 # 蜗牛传送
 
-当前源码版本为 `v3.4.0`，支持在原 HTTPS 域名之外配置额外 HTTPS IP 入口，共用单实例与原数据，按 Host 对应 Origin 校验。保留 v3.3.2 的界面改进及现有传输功能；部署和实机状态见 ROADMAP。
+当前源码版本为 `v4.1.0`，新增图片弹窗预览及缩放，复用已有鉴权原图接口；保留 v4.0.0 的 todoist 共享登录和全部传输功能，单实例数据不变。部署和实机状态见 ROADMAP。
 
 新增参数示例：`--origin https://tools.20242233.xyz --additional-origin https://192.168.3.195:8443 --additional-origin https://192.168.3.159:8443`。每个入口独立登录，Cookie 保持 Secure／HttpOnly／SameSite，禁止跨入口混用 Origin。主入口为 HTTP 时不能配置额外入口，不接受通配符或任意客户端来源。局域网证书安装和运行入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
 
@@ -32,14 +32,14 @@ TRANSFER_PYTHON=/Users/macminimai/ai/project/snail-transfer/.venv/bin/python sh 
 .venv/bin/python -m transfer run --origin https://tools.20242233.xyz --prefix /transfer --port 8765 --data '/Users/macminimai/Library/Application Support/personweb/transfer-data'
 ```
 
-传输服务已部署 v3.3.2，优化嵌入设置条、批量删除禁用态、记录状态徽章、跨年时间与缩略图限高；外层工具站及 Java 不变。入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 `transfer-data`。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见 [部署说明](/Users/macminimai/ai/project/personal-tools/back-end/blog/transfer-service/deploy/README.md)，验收状态见 ROADMAP。
+传输服务已部署 v4.1.0，新增图片弹窗预览并保留 todoist 共享登录；入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 `transfer-data`。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见 [部署说明](/Users/macminimai/ai/project/personal-tools/back-end/blog/transfer-service/deploy/README.md)，验收状态见 ROADMAP。
 
 ## 使用和数据
 
 - 两端用同一个传输密码登录，发送文字、选择文件；Windows 还可拖放或粘贴截图。时间线支持搜索、类型筛选、复制、原图及文件下载、手动删除。
 - 输入框随文字、换行及窗口宽度自动增高或缩回，空白从一行开始，手机占位文字按宽度自然换行；最多约 8 行，超出后在框内滚动。删除文字、发送成功或分享草稿填入后同步高度，发送未确认时保留原内容；粘贴到末尾时保持末尾可见。底部常驻提示栏已移除，容量达到 90% 时仍显示警告。
 - 发送按钮采用紧凑尺寸，发送中、取消及发送完成后保持相同高度和文字／箭头结构；手机端发送与取消可换行显示，不挤压到屏幕外。
-- 记录顶部集中显示来源、状态和时间，右侧操作依次为：文字「复制文字 → 删除记录」、图片「复制图片 → 下载 → 删除记录」、文件「下载 → 删除记录」。混合记录保留文字复制及各附件操作，多附件显示对应文件名，删除记录始终最后；手机端允许操作区在正文上方换行。图片使用小缩略图，点击仍可查看原图，下载按钮保存原文件。
+- 记录顶部集中显示来源、状态和时间，右侧操作依次为：文字「复制文字 → 删除记录」、图片「复制图片 → 下载 → 删除记录」、文件「下载 → 删除记录」。混合记录保留文字复制及各附件操作，多附件显示对应文件名，删除记录始终最后；手机端允许操作区在正文上方换行。点击图片缩略图在当前同步区域弹窗查看原图，不新开页签；初始适应窗口，支持放大／缩小、100%、滚轮或双指缩放、放大后拖动。关闭按钮、Esc 或桌面遮罩可关闭，恢复原列表位置；加载失败可重试，关闭取消请求并释放资源。下载仍保存原文件。
 - 传输记录默认每页 5 条，底部可选 5／10／20 条，通过「上一页／下一页」浏览；翻页替换列表，显示当前页及匹配总数。搜索、类型或条数改变、手动刷新及发送成功回到第一页。浏览旧页或已有勾选时，新记录只触发更新提示，点击提示回首页刷新；删除导致末页为空时回到上一有效页。旧接口不传 `page_size` 时仍返回最多 30 条。
 - 批量删除：每条记录左侧有勾选框，上方提供「全选本页」、已选数量和「删除所选」。翻页、搜索、切换类型或每页条数、刷新时清空勾选，不能跨页累计；确认后移除原文及服务器附件，无法撤销，已下载副本不变。原来的逐条删除仍可使用；服务端批量接口保留最多 1000 条的既有边界。
 - 修改密码：登录后在页面下方点击「修改密码」，填写旧密码、新密码及确认密码，再点击「保存新密码」。新密码允许 10～256 个字符，不强制大小写、数字或符号组合，空格按原样保留。成功后所有设备退出登录，需使用新密码登录；文字、图片和文件不变。旧密码校验沿用 15 分钟最多 10 次的登录限流，失败不会改变密码或会话；改密时请先等待当前发送完成。
@@ -48,7 +48,8 @@ TRANSFER_PYTHON=/Users/macminimai/ai/project/snail-transfer/.venv/bin/python sh 
 - 上传提供阶段、进度和取消：读取／校验及普通请求超时 30 秒，上传连续 60 秒没有新增字节进度时超时，正常传输不因累计超过 60 秒中断；每片累计上限 5 分钟，服务端完整校验 90 秒。取消／超时恢复操作并保留确认片，重试先查状态；记录提交未知沿用原标识，保存后的刷新不阻塞按钮。v3.3.1 改善慢速链路，安卓实机结果仍需核对。
 - 页面每 5 秒检查新记录；发送成功表示服务端已保存，不等于对方已下载。原文、原文件长期保留，未提交上传有过期清理，满额拒绝新增。
 - SQLite 保存记录，附件保存在独立磁盘目录；默认容量 20 GB。此数据与 todoist 两份 Markdown 无关。`data/`、真实凭据和备份均不提交 Git。
-- 单账号登录和 CSRF 校验保留；文件、缩略图和备份均须授权。工具站挂载模式仅允许同源嵌入，Cookie／Service Worker 不越出 `/transfer/`。PWA 安装及安卓系统分享使用 `/transfer/` 独立页面，不能以桌面测试代表安卓实测。
+- 单账号登录和 CSRF 校验保留；文件、缩略图和备份均须授权。工具站挂载模式仅允许同源嵌入，资源及 Service Worker 不越出 `/transfer/`；共享 Cookie 使用 `/`，保持 host-only、Secure／HttpOnly／SameSite，在会话检查时兼容迁移旧 `/transfer/` Cookie。PWA 安装及安卓系统分享仍使用 `/transfer/` 独立页面。
+- `/transfer/api/todoist-authorize` 供本站 Caddy 的 `forward_auth` 调用，只做鉴权，不接触任务文件。Caddy 覆写原始方法头；GET 校验会话，POST 额外校验精确 Origin 与 CSRF，其他方法拒绝。退出、会话过期、改密撤销同时作用于 todoist；认证服务不可用时代理拒绝放行。单独发布 Java 或登录界面不能提供此权限。
 - 运行中从页面导出完整备份；离线可用 `backup --data … --output …`。恢复使用 `restore <备份路径> --data <不存在的新目录>`，核对清单及文件哈希，不覆盖运行数据。
 
 ## 验证
@@ -58,6 +59,7 @@ TRANSFER_PYTHON=/Users/macminimai/ai/project/snail-transfer/.venv/bin/python sh 
 node --check transfer/static/app.js
 node --check transfer/static/transfer-io.mjs
 node --check transfer/static/image-clipboard.mjs
+node --check transfer/static/image-preview.mjs
 node --check transfer/static/sw.js
 node --test tests/*.test.*
 ```

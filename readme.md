@@ -1,12 +1,12 @@
 # 工具后端
 
-当前工具后端与 todoist 项目版本统一为 `3.4.0`，随产品 V3 管理；本次仅对齐 Java 元数据，局域网 IP 直连只更新独立传输组件并增加项目专用 HTTPS 代理，原工具接口、任务文件和固定产物名不变。
+当前自有项目源码版本统一为 `4.1.0`。本次只部署传输组件的图片弹窗、缩放及拖动；Java 仅同步元数据，不重新构建或部署。保留 v4.0.0 的 todoist 共享登录，鉴权仍由本站 Caddy 与传输服务执行，原工具接口及任务文件不变。
 
 Java 21／Spring Boot 工具接口与独立 todoist 本地任务模块，不依赖数据库。使用仓库 Maven Wrapper（Maven 3.9.9），运行前让 `JAVA_HOME` 指向 JDK 21。v0.4.0 本地执行版已于 2026-10-20 部署，原工具 WAR 不变。
 
 ## 电脑手机同步
 
-`transfer-service/` 为蜗牛传送正式源码，随本仓库维护，使用 Python／Flask、SQLite 和磁盘附件，不纳入 Maven 构建。v3.4.0 已独立部署，主域名之外可配置多个精确 HTTPS Origin，每个 Host 与自己的 Origin 配对校验，数据仍由一个服务持有。保留原有界面、分片、分页、图片复制、网页改密和批量删除。局域网地址及客户端证书安装见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) ；运行与数据边界见 [传输服务说明](transfer-service/README.md) 与 [项目规范](transfer-service/AGENTS.md) 。
+`transfer-service/` 为蜗牛传送正式源码，随本仓库维护，使用 Python／Flask、SQLite 和磁盘附件，不纳入 Maven 构建。v4.0.0 已部署共享鉴权，保留多个精确 HTTPS Origin、原界面、分片、分页、图片复制、网页改密和批量删除，数据仍由一个服务持有。局域网地址及客户端证书安装见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) ；运行与数据边界见 [传输服务说明](transfer-service/README.md) 与 [项目规范](transfer-service/AGENTS.md) 。
 
 当前 Mac mini 保留原 `/Users/macminimai/ai/project/snail-transfer/.venv/` 与历史 `.tmp/`，生产继续使用该虚拟环境和原独立发布包；迁入源码不会改变生产记录、密码、自启动或服务进程。新检出目录按传输服务说明创建独立虚拟环境。
 
@@ -52,7 +52,7 @@ operation 为 `add`／`edit`／`complete`／`remove`。新增 fields 至少含 n
 
 私有回执记录幂等摘要、结果及未完成事务的前后字节快照，成功后删去快照。服务重启可查询／恢复原请求；同 UUID 改输入返回 `REQUEST_MISMATCH`。归档中断后只有文件仍匹配记录才继续，外部变化返回 `RECOVERY_REQUIRED` 并阻止新写入，不覆盖数据。两文件不是原子事务，部分写入或断电可能需人工核对。正文不进入运行日志，错误只返回安全码。
 
-本机文件锁不保证与 PowerShell、编辑器、会话、坚果云及其他设备互斥；跨 Java／PowerShell 锁尚未实测。使用前确认同步完成，避免同时编辑两个文件，不扫描其他知识库文件。按用户选择，没有网站登录、每日限额或跨客户端协调，不宣称访问控制。测试仅使用合成文件，覆盖格式、去重、旧版本、重复请求、锁、批量及归档中断恢复。
+本机文件锁不保证与 PowerShell、编辑器、会话、坚果云及其他设备互斥；跨 Java／PowerShell 锁尚未实测。使用前确认同步完成，避免同时编辑两个文件，不扫描其他知识库文件。公网及 LAN 的任务查询、提交与回执由本站 Caddy 调用 `/transfer/api/todoist-authorize` 校验共享会话，写入还校验原始方法、Origin 和 CSRF，认证服务异常不放行；Java 回环接口仅供本机可信调用，不直接对外开放。没有每日限额或跨客户端协调。测试仅使用合成文件，原任务规则不变。
 
 ## 固定周期生成
 

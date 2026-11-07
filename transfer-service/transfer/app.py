@@ -52,7 +52,7 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
         MAX_FORM_MEMORY_SIZE=1024 * 1024,
         SESSION_COOKIE_NAME="snail_session", SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=parsed.scheme == "https", SESSION_COOKIE_SAMESITE="Strict",
-        SESSION_COOKIE_PATH=(prefix + "/") if prefix else "/",
+        SESSION_COOKIE_PATH="/",
         PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         SESSION_REFRESH_EACH_REQUEST=False,
     )
@@ -93,6 +93,9 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
         response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors {ancestors}; form-action 'self'"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Cache-Control"] = "no-store"
+        if prefix and request.path in ("/api/session", "/api/login", "/api/logout", "/api/password"):
+            response.delete_cookie(app.config["SESSION_COOKIE_NAME"], path=prefix + "/",
+                                   secure=app.config["SESSION_COOKIE_SECURE"], httponly=True, samesite="Strict")
         if parsed.scheme == "https":
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
@@ -133,7 +136,25 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
 
     @app.get("/api/session")
     def session_info():
-        return jsonify(authenticated=authorized(), configured=store.configured(), csrf=csrf(), local_setup=local)
+        authenticated = authorized()
+        if prefix and authenticated:
+            # 旧挂载路径 Cookie 的签名及 sid 继续有效，原样换发根路径 Cookie。
+            session.modified = True
+        return jsonify(authenticated=authenticated, configured=store.configured(), csrf=csrf(), local_setup=local)
+
+    @app.get("/api/todoist-authorize")
+    def authorize_todoist():
+        # before_request 已校验 Host 与登录；Caddy 在 GET 子请求中覆盖原始方法头。
+        method = request.headers.get("X-Forwarded-Method", "GET")
+        if method not in ("GET", "POST"):
+            return jsonify(code="METHOD_NOT_ALLOWED", error="请求方式不支持"), 405
+        if method == "POST":
+            expected = session.get("csrf", "")
+            token = request.headers.get("X-CSRF-Token", "")
+            if (request.headers.get("Origin") != origins_by_host[request.host.lower()]
+                    or not expected or not hmac.compare_digest(expected, token)):
+                return jsonify(code="CSRF_INVALID", error="页面凭证已过期，请刷新后重试"), 403
+        return "", 204
 
     @app.post("/api/setup")
     def setup():

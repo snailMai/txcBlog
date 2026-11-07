@@ -78,6 +78,23 @@
     </main>
   </div>
   <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="image-preview" aria-labelledby="image-preview-title">
+    <header class="image-preview-toolbar">
+      <strong id="image-preview-title"></strong>
+      <div class="image-preview-controls">
+        <button id="image-preview-out" type="button" aria-label="缩小图片" disabled>−</button>
+        <output id="image-preview-ratio" aria-label="缩放比例"></output>
+        <button id="image-preview-in" type="button" aria-label="放大图片" disabled>＋</button>
+        <button id="image-preview-fit" type="button" disabled>适应窗口</button>
+        <button id="image-preview-actual" type="button" disabled>100%</button>
+        <button id="image-preview-close" type="button" aria-label="关闭图片预览">关闭</button>
+      </div>
+    </header>
+    <div id="image-preview-viewport">
+      <img id="image-preview-image" alt="" hidden draggable="false">
+      <div class="image-preview-feedback"><p id="image-preview-status" role="status"></p><button id="image-preview-retry" type="button" hidden>重试</button></div>
+    </div>
+  </dialog>
   <dialog id="password-dialog" aria-labelledby="password-title">
     <form id="password-form">
       <h2 id="password-title">修改密码</h2>

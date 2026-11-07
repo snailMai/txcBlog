@@ -47,7 +47,7 @@ class MountedTransferTests(unittest.TestCase):
         self.assertEqual(page.headers["X-Frame-Options"], "SAMEORIGIN")
         self.assertIn("frame-ancestors 'self'", page.headers["Content-Security-Policy"])
         self.assertIn('type="module"', text)
-        for path in ("/static/app.js", "/static/image-clipboard.mjs", "/static/transfer-io.mjs", "/static/style.css", "/static/icon.svg", "/health"):
+        for path in ("/static/app.js", "/static/image-clipboard.mjs", "/static/image-preview.mjs", "/static/transfer-io.mjs", "/static/style.css", "/static/icon.svg", "/health"):
             response = self.request(path)
             self.assertEqual(response.status_code, 200)
             if path.endswith(".mjs"):
@@ -62,7 +62,7 @@ class MountedTransferTests(unittest.TestCase):
         self.assertEqual(worker.headers["Service-Worker-Allowed"], "/transfer/")
         worker.close()
         session = self.request("/api/session")
-        self.assertIn("Path=/transfer/", session.headers["Set-Cookie"])
+        self.assertIn("Path=/;", session.headers.getlist("Set-Cookie")[-1])
         for path in ("/", "/Todoist", "/api/messages", "/static/app.js", "/sw.js"):
             self.assertEqual(self.client.get(path, base_url=ORIGIN).status_code, 404)
 

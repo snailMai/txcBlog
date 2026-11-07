@@ -29,8 +29,8 @@ class MultipleOriginTests(unittest.TestCase):
     def login(self, origin):
         client = self.app.test_client()
         response = client.get("/transfer/api/session", base_url=origin)
-        cookie = response.headers["Set-Cookie"]
-        for part in ("Secure", "HttpOnly", "SameSite=Strict", "Path=/transfer/"):
+        cookie = response.headers.getlist("Set-Cookie")[-1]
+        for part in ("Secure", "HttpOnly", "SameSite=Strict", "Path=/;"):
             self.assertIn(part, cookie)
         headers = {"Origin": origin, "X-CSRF-Token": response.json["csrf"]}
         response = client.post("/transfer/api/login", base_url=origin, headers=headers,

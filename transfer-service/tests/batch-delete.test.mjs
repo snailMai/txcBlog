@@ -227,7 +227,7 @@ test("image and file actions retain exact order and authenticated file targets w
   assert.equal(controls(h, image)[0]["aria-label"], "复制图片：image.png");
   assert.equal(controls(h, image)[1].href, `/transfer/api/files/${imageFile.id}/download`);
   assert.equal(controls(h, file)[0].href, `/transfer/api/files/${plainFile.id}/download`);
-  assert.ok(h.descendants(image).some(node => node.href === `/transfer/api/files/${imageFile.id}/preview`));
+  assert.ok(h.descendants(image).some(node => node.className === "image-link" && node.type === "button" && node["aria-label"] === "查看原图：image.png" && !node.href && !node.target));
   assert.equal(h.descendants(image).filter(node => node.className === "download").length, 1);
   assert.ok(!h.descendants(image).some(node => node.textContent === "下载原图" || node.textContent === "↓" || node.className === "file-actions"));
 });

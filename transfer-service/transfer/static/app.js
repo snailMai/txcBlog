@@ -26,6 +26,45 @@ const FILE_LIMIT = 500000000;
 const copyingImages = new Set();
 const selectedRecords = new Set();
 let sendController = null;
+let renameTarget = null;
+let renameBusy = false;
+
+function splitFilename(name) {
+  for (const suffix of [".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"]) {
+    if (name.length > suffix.length && name.toLowerCase().endsWith(suffix)) return [name.slice(0, -suffix.length), name.slice(-suffix.length)];
+  }
+  const dot = name.lastIndexOf(".");
+  return dot > 0 && dot < name.length - 1 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+}
+function composeFilename(stem, suffix) {
+  const name = stem + suffix;
+  if (!stem.trim() || /[\x00-\x1f\x7f/\\<>:"|?*]/.test(stem) || /[ .]$/.test(stem)
+    || Array.from(name).length > 240 || splitFilename(name)[1] !== suffix) throw new Error("文件名无效或过长");
+  return name;
+}
+function queueStem(file) {
+  const suffix = splitFilename(file.originalName || file.name)[1];
+  return suffix ? file.name.slice(0, -suffix.length) : file.name;
+}
+
+async function saveFilename(id, stem, expectedName, signal) {
+  const desired = composeFilename(stem, splitFilename(expectedName)[1]);
+  try {
+    const result = await json(`/api/uploads/${id}`, { method: "PATCH", signal, stage: "保存文件名称",
+      body: JSON.stringify({ stem, expected_name: expectedName }) });
+    if (result.ok !== true || result.id !== id || result.name !== desired) throw new Error("改名响应未确认");
+    return result.name;
+  } catch (error) {
+    if (error.status && error.status < 500) throw error;
+    if (signal?.aborted) throw error;
+    // 超时可能已经保存，只读取当前名称核对，不自动再次 PATCH。
+    try {
+      const current = await json(`/api/uploads/${id}`, { signal, stage: "核对文件名称" });
+      if (current.name === desired) return desired;
+    } catch { /* 无法核对时仍保留结果未知。 */ }
+    throw new Error("改名结果尚未确认，请刷新记录核对后再操作");
+  }
+}
 
 // Only product labels are normalized. User text and filenames remain unchanged.
 function formatUI(value) {
@@ -97,6 +136,7 @@ async function json(url, { timeoutMs = 30_000, stage = "请求服务器", ...opt
 }
 function showAuth() {
   imagePreview?.close();
+  $("rename-dialog").close(); renameTarget = null;
   $("password-dialog").close(); $("password-form").reset();
   $("confirm-dialog").close(); clearSelection();
   $("workspace").hidden = true; $("auth-screen").hidden = false;
@@ -179,17 +219,51 @@ $("password-form").addEventListener("submit", async event => {
   }
 });
 
+function openRename(file) {
+  if (renameBusy) return;
+  const [stem, suffix] = splitFilename(file.name);
+  renameTarget = { id: file.id, name: file.name };
+  $("rename-name").value = stem; $("rename-name").maxLength = 240 - suffix.length;
+  $("rename-suffix").textContent = suffix; $("rename-suffix").hidden = !suffix;
+  $("rename-error").hidden = true; $("rename-error").textContent = "";
+  $("rename-dialog").showModal(); $("rename-name").focus();
+}
+$("rename-cancel").addEventListener("click", () => $("rename-dialog").close());
+$("rename-dialog").addEventListener("cancel", event => { if (renameBusy) event.preventDefault(); });
+$("rename-dialog").addEventListener("close", () => { renameTarget = null; $("rename-form").reset(); });
+$("rename-form").addEventListener("submit", async event => {
+  event.preventDefault(); if (!renameTarget || renameBusy) return;
+  const target = renameTarget;
+  try { composeFilename($("rename-name").value, splitFilename(target.name)[1]); }
+  catch (error) { $("rename-error").textContent = error.message; $("rename-error").hidden = false; return; }
+  renameBusy = true; $("rename-save").disabled = true; $("rename-cancel").disabled = true; $("rename-name").disabled = true;
+  label("rename-save", "正在保存…"); $("rename-error").hidden = true;
+  try {
+    await saveFilename(target.id, $("rename-name").value, target.name);
+    if (renameTarget !== target || !state.authenticated) return;
+    $("rename-dialog").close(); toast("文件名称已保存");
+    await refreshHistory();
+  } catch (error) {
+    if (renameTarget === target) { $("rename-error").textContent = error.message; $("rename-error").hidden = false; }
+  } finally {
+    renameBusy = false; $("rename-save").disabled = false; $("rename-cancel").disabled = false; $("rename-name").disabled = false; label("rename-save", "保存名称");
+  }
+});
+
 async function fingerprint(file) {
   return (await readHashed(new Blob([`${file.name}:${file.size}:`, file.slice(0, 65536), file.slice(Math.max(0, file.size - 65536))]))).hash;
 }
 function rememberDraft() {
-  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.files.filter(f => f.id).map(({ id, name, size, fingerprint: fp }) => ({ id, name, size, fingerprint: fp })))); }
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(state.files.filter(f => f.id).map(({ id, name, originalName, serverName, size, fingerprint: fp }) => ({ id, name, originalName, serverName, size, fingerprint: fp })))); }
   catch { toast("浏览器无法保存续传信息，请保持当前页面打开", true); }
 }
 function restoreDraft() {
   try {
     const items = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
-    if (Array.isArray(items)) state.files = items.filter(f => /^[a-f0-9]{32}$/.test(f.id) && typeof f.name === "string" && typeof f.size === "number").slice(0, 20).map(f => ({ ...f, status: "请重新选择原文件以继续", progress: 0, file: null }));
+    if (Array.isArray(items)) state.files = items.filter(f => /^[a-f0-9]{32}$/.test(f.id) && typeof f.name === "string" && typeof f.size === "number").slice(0, 20).map(f => ({ ...f,
+      originalName: typeof f.originalName === "string" ? f.originalName : f.name,
+      serverName: typeof f.serverName === "string" ? f.serverName : f.name,
+      status: "请重新选择原文件以继续", progress: 0, file: null }));
   } catch { state.files = []; }
   renderQueue();
 }
@@ -205,7 +279,7 @@ async function addFiles(files) {
     if (previous) { previous.file = file; previous.status = "已重新选择，发送时继续上传"; previous.error = false; }
     else {
       if (state.files.length >= 20) { toast("一次最多发送 20 个附件", true); break; }
-      state.files.push({ file, name: file.name, size: file.size, fingerprint: fp, progress: 0, status: "待发送", id: null });
+      state.files.push({ file, name: file.name, originalName: file.name, size: file.size, fingerprint: fp, progress: 0, status: "待发送", id: null });
     }
   } }
   finally {
@@ -217,7 +291,14 @@ function renderQueue() {
   const fragment = document.createDocumentFragment();
   for (const file of state.files) {
     const card = el("div", "attachment");
-    const info = el("div"); info.append(el("span", "attachment-name", file.name, true), el("span", `attachment-status${file.error ? " error" : ""}`, `${bytes(file.size)} · ${file.status}`));
+    const info = el("div", "attachment-info"); info.append(el("span", "attachment-name", `原名：${file.originalName || file.name}`, true), el("span", `attachment-status${file.error ? " error" : ""}`, `${bytes(file.size)} · ${file.status}`));
+    const field = el("label", "filename-field"); field.append(el("span", "filename-label", "文件名称"));
+    const row = el("span", "filename-row"), input = el("input", "filename-input");
+    const suffix = splitFilename(file.originalName || file.name)[1];
+    input.type = "text"; input.value = queueStem(file); input.maxLength = 240 - suffix.length; input.disabled = state.sending;
+    input.addEventListener("input", () => { file.name = input.value + suffix; rememberDraft(); });
+    const fixedSuffix = el("span", "filename-suffix", suffix, true); fixedSuffix.hidden = !suffix;
+    row.append(input, fixedSuffix); field.append(row); info.append(field);
     const remove = el("button", "", "×"); remove.type = "button"; remove.setAttribute("aria-label", `移除 ${file.name}`); remove.disabled = state.sending;
     remove.addEventListener("click", async () => {
       remove.disabled = true;
@@ -239,6 +320,11 @@ async function upload(file, signal, allowCommitted) {
     try { status = await json(`/api/uploads/${file.id}`, { signal, stage: "核对续传进度" }); }
     catch (error) { if (error.status !== 404) throw error; file.id = null; }
   }
+  if (status && file.name !== status.name) {
+    statusLabel("正在保存文件名称");
+    const saved = await saveFilename(file.id, queueStem(file), file.serverName || status.name, signal);
+    status.name = saved; file.serverName = saved; rememberDraft();
+  }
   if (status?.message_id) {
     if (allowCommitted) return;
     throw new Error("该附件已经发送，请查看传输记录，再移除待发送附件");
@@ -247,8 +333,11 @@ async function upload(file, signal, allowCommitted) {
   if (!file.file) throw new Error(`请重新选择“${file.name}”后再发送`);
   if (!file.id) {
     statusLabel("正在创建上传任务");
-    status = await json("/api/uploads", { method: "POST", signal, stage: "创建上传任务", body: JSON.stringify({ name: file.name, size: file.size, fingerprint: file.fingerprint }) });
-    file.id = status.id; rememberDraft();
+    const original = file.originalName || file.name;
+    status = await json("/api/uploads", { method: "POST", signal, stage: "创建上传任务", body: JSON.stringify({ name: original,
+      ...(file.name !== original ? { stem: queueStem(file) } : {}), size: file.size, fingerprint: file.fingerprint }) });
+    file.id = status.id; file.serverName = status.name; rememberDraft();
+    if (file.name !== status.name) throw new Error("上传任务名称未确认，请刷新后核对");
   }
   const chunkSize = status.chunk_size ?? CHUNK_SIZE;
   if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0 || chunkSize > CHUNK_SIZE)
@@ -316,6 +405,8 @@ $("send-button").addEventListener("click", async () => {
   if (state.sending || state.preparing) return;
   const text = $("message-text").value;
   if (!text.trim() && !state.files.length) return toast("请输入文字或添加文件", true);
+  try { for (const file of state.files) if (file.name !== (file.originalName || file.name)) composeFilename(queueStem(file), splitFilename(file.originalName || file.name)[1]); }
+  catch (error) { return toast(error.message, true); }
   state.sending = true; $("send-button").disabled = true; $("choose-files").disabled = true; $("message-text").disabled = true;
   label("send-label", "正在发送…"); $("send-button").setAttribute("aria-busy", "true");
   sendController = new AbortController();
@@ -377,7 +468,7 @@ function updatePagination() {
   updateSelection();
 }
 async function refreshHistory({ page = state.page, reset = false, quiet = false } = {}) {
-  if (quiet && (state.pageLoading || $("confirm-dialog").open)) return;
+  if (quiet && (state.pageLoading || $("confirm-dialog").open || $("rename-dialog").open)) return;
   if (reset) {
     clearTimeout(searchTimer); page = 0;
     Object.assign(state, { page: 0, cursors: [null], next: null, rows: [], signature: "", latest: null, historyTotal: 0, historyChanged: false, historyError: "" });
@@ -505,6 +596,8 @@ function renderHistory() {
         const name = el("span", "record-action-name", file.name, true); name.title = file.name; group.append(name);
       }
       if (file.mime.startsWith("image/")) group.append(imageCopyButton(file));
+      const rename = el("button", "rename-file-button", "重命名"); rename.type = "button";
+      rename.setAttribute("aria-label", `重命名：${file.name}`); rename.addEventListener("click", () => openRename(file)); group.append(rename);
       const download = el("a", "download", "下载"); download.href = endpoint(`/api/files/${file.id}/download`);
       download.setAttribute("aria-label", `下载 ${file.name}`); group.append(download); actions.append(group);
     }

@@ -1,6 +1,6 @@
 # 蜗牛传送
 
-当前源码版本为 `v4.1.0`，新增图片弹窗预览及缩放，复用已有鉴权原图接口；保留 v4.0.0 的 todoist 共享登录和全部传输功能，单实例数据不变。部署和实机状态见 ROADMAP。
+当前源码版本为 `v4.2.1`，运行组件仍为 v4.2.0，保留上传前自定义名称和上传后重命名，后缀固定；只更新名称元数据，不修改数据库结构或原文件字节。保留登录卡、图片预览、todoist 共享登录及全部传输功能，部署和实机状态见 ROADMAP。
 
 新增参数示例：`--origin https://tools.20242233.xyz --additional-origin https://192.168.3.195:8443 --additional-origin https://192.168.3.159:8443`。每个入口独立登录，Cookie 保持 Secure／HttpOnly／SameSite，禁止跨入口混用 Origin。主入口为 HTTP 时不能配置额外入口，不接受通配符或任意客户端来源。局域网证书安装和运行入口见宿主 [直连说明](/Users/macminimai/ai/project/personal-tools/deploy/LAN.md) 。
 
@@ -32,11 +32,13 @@ TRANSFER_PYTHON=/Users/macminimai/ai/project/snail-transfer/.venv/bin/python sh 
 .venv/bin/python -m transfer run --origin https://tools.20242233.xyz --prefix /transfer --port 8765 --data '/Users/macminimai/Library/Application Support/personweb/transfer-data'
 ```
 
-传输服务已部署 v4.1.0，新增图片弹窗预览并保留 todoist 共享登录；入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 `transfer-data`。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见 [部署说明](/Users/macminimai/ai/project/personal-tools/back-end/blog/transfer-service/deploy/README.md)，验收状态见 ROADMAP。
+传输服务已部署 v4.2.0，保留 todoist 共享登录；入口为 `https://tools.20242233.xyz/Transfer`。项目专用用户 LaunchAgent 使用独立发布包，登录后启动并自动恢复；数据目录为上述 transfer-data。access-password.txt（0600）仅记录首次密码，网页改密后不会更新，不作为当前密码依据；不重新初始化已有数据或凭据。入口及自启动见部署说明，验收状态见 ROADMAP。
 
 ## 使用和数据
 
 - 两端用同一个传输密码登录，发送文字、选择文件；Windows 还可拖放或粘贴截图。时间线支持搜索、类型筛选、复制、原图及文件下载、手动删除。
+- 待发送列表可编辑文件主名称，后缀单独固定显示，界面不增加说明提示语；创建上传任务时一并保存自定义名称，续传保留原文件指纹、原名称和已确认名称。已发送附件的「重命名」打开相同输入方式；同名附件允许存在，通过 UUID 区分。改名只更新 uploads.name，列表、搜索、预览标题和下载名随后更新，原文件及本地下载副本不变。无后缀文件不允许新增后缀，常见 .tar.gz／.tar.bz2／.tar.xz／.tar.zst 整体保留，大小写原样保存。
+- `PATCH /transfer/api/uploads/<id>` 只接收 stem 和 expected_name，服务端从既有名称保留后缀；登录、精确 Origin／CSRF 及写锁沿用现有实现。旧名称冲突返回 409，已删除／不存在文件返回 404；目标名称已保存的重试幂等。保存超时先 GET 核对，不自动重发；不能确认时保留未知提示，刷新核对后再操作。原上传接口不传 stem 时保持既有行为。
 - 输入框随文字、换行及窗口宽度自动增高或缩回，空白从一行开始，手机占位文字按宽度自然换行；最多约 8 行，超出后在框内滚动。删除文字、发送成功或分享草稿填入后同步高度，发送未确认时保留原内容；粘贴到末尾时保持末尾可见。底部常驻提示栏已移除，容量达到 90% 时仍显示警告。
 - 发送按钮采用紧凑尺寸，发送中、取消及发送完成后保持相同高度和文字／箭头结构；手机端发送与取消可换行显示，不挤压到屏幕外。
 - 记录顶部集中显示来源、状态和时间，右侧操作依次为：文字「复制文字 → 删除记录」、图片「复制图片 → 下载 → 删除记录」、文件「下载 → 删除记录」。混合记录保留文字复制及各附件操作，多附件显示对应文件名，删除记录始终最后；手机端允许操作区在正文上方换行。点击图片缩略图在当前同步区域弹窗查看原图，不新开页签；初始适应窗口，支持放大／缩小、100%、滚轮或双指缩放、放大后拖动。关闭按钮、Esc 或桌面遮罩可关闭，恢复原列表位置；加载失败可重试，关闭取消请求并释放资源。下载仍保存原文件。

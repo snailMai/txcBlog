@@ -36,6 +36,25 @@ def new_id():
     return uuid.uuid4().hex
 
 
+def split_filename(name):
+    for suffix in (".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"):
+        if len(name) > len(suffix) and name.lower().endswith(suffix):
+            return name[:-len(suffix)], name[-len(suffix):]
+    dot = name.rfind(".")
+    return (name[:dot], name[dot:]) if 0 < dot < len(name) - 1 else (name, "")
+
+
+def renamed_filename(current_name, stem):
+    if (not isinstance(stem, str) or not stem.strip() or stem.endswith((" ", "."))
+            or any(ord(c) < 32 or ord(c) == 127 or c in '/\\<>:"|?*' for c in stem)):
+        raise Problem("文件名无效")
+    suffix = split_filename(current_name)[1]
+    name = stem + suffix
+    if len(name) > 240 or split_filename(name)[1] != suffix:
+        raise Problem("文件名过长或后缀已变化")
+    return name
+
+
 def sha256_file(path):
     digest = hashlib.sha256()
     with open(path, "rb") as source:
@@ -197,12 +216,14 @@ class Store:
                     result["chunk_size"] = LEGACY_CHUNK_SIZE
         return result
 
-    def begin(self, name, size, fingerprint):
+    def begin(self, name, size, fingerprint, stem=None):
         if not isinstance(name, str) or not name or len(name) > 240 or any(ord(c) < 32 for c in name):
             raise Problem("文件名无效或过长")
         name = name.replace("\\", "/").rsplit("/", 1)[-1]
         if name in ("", ".", ".."):
             raise Problem("文件名无效")
+        if stem is not None:
+            name = renamed_filename(name, stem)
         if type(size) is not int or not 0 <= size <= FILE_LIMIT:
             raise Problem("单个文件不能超过 500 MB", 413)
         if not isinstance(fingerprint, str) or not HASH_PATTERN.fullmatch(fingerprint):
@@ -222,6 +243,24 @@ class Store:
                 db.execute("INSERT INTO uploads(id,name,size,fingerprint,created) VALUES(?,?,?,?,?)",
                            (upload_id, name, size, fingerprint, time.time()))
                 return self.get_upload(upload_id, db)
+
+    def rename(self, upload_id, stem, expected_name):
+        if not isinstance(upload_id, str) or not ID_PATTERN.fullmatch(upload_id):
+            raise Problem("文件不存在", 404)
+        if not isinstance(expected_name, str) or not expected_name or len(expected_name) > 240:
+            raise Problem("原文件名无效")
+        with self.lock, self.db() as db:
+            row = db.execute("SELECT u.* FROM uploads u LEFT JOIN messages m ON m.id=u.message_id "
+                             "WHERE u.id=? AND (u.message_id IS NULL OR m.deleted=0)", (upload_id,)).fetchone()
+            if row is None:
+                raise Problem("文件不存在或已删除", 404)
+            name = renamed_filename(row["name"], stem)
+            # 同名重试可确认成功；旧页面不能覆盖后来保存的其他名称。
+            if row["name"] != name:
+                if row["name"] != expected_name:
+                    raise Problem("文件名称已变化，请刷新后重新修改", 409)
+                db.execute("UPDATE uploads SET name=? WHERE id=?", (name, upload_id))
+            return {"id": upload_id, "name": name}
 
     def put_chunk(self, upload_id, index, data, digest):
         if not isinstance(digest, str) or not HASH_PATTERN.fullmatch(digest):

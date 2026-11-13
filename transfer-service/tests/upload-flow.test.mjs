@@ -13,20 +13,21 @@ const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 
 async function harness(t, options = {}) {
   const nodes = new Map(), calls = [], sends = [], readers = [];
-  const job = { id: "a".repeat(32), state: "pending", chunks: { ...options.chunks }, message_id: null };
+  const job = { id: "a".repeat(32), name: "synthetic.jpg", state: "pending", chunks: { ...options.chunks }, message_id: null };
   if (options.chunkSize !== undefined) job.chunk_size = options.chunkSize;
   const records = new Map();
   const settings = { ...options };
+  const storage = new Map();
   const windowListeners = new Map();
   const deadline = options.deadline || 50;
   function node(id = "") {
     if (id && nodes.has(id)) return nodes.get(id);
     const listeners = new Map();
     const value = { value: "", textContent: "", disabled: false, hidden: false, open: false, dataset: {}, style: {}, scrollTop: 0,
-      classList: { toggle() {} }, append() {}, replaceChildren() {}, setAttribute() {}, reset() {}, focus() {},
+      children: [], classList: { toggle() {} }, append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }, setAttribute() {}, reset() {}, focus() {},
       addEventListener(type, callback) { listeners.set(type, callback); },
       emit(type, event = { preventDefault() {} }) { return listeners.get(type)?.(event); },
-      close() { this.open = false; }, showModal() { this.open = true; } };
+      close() { this.open = false; this.emit("close"); }, showModal() { this.open = true; } };
     if (id) nodes.set(id, value);
     if (id === "message-text" && options.composer) {
       value.clientWidth = 320;
@@ -87,7 +88,7 @@ async function harness(t, options = {}) {
       queueMicrotask(() => { request.result = db; request.onsuccess?.(); });
       return request;
     } },
-    localStorage: { getItem: () => "[]", setItem() {}, removeItem() {} },
+    localStorage: { getItem: key => storage.get(key) || "[]", setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     setInterval() {}, setTimeout: () => 1, clearTimeout() {},
     async fetch(url, request) {
       calls.push({ url, request });
@@ -95,9 +96,20 @@ async function harness(t, options = {}) {
       if (url === "/transfer/api/uploads") {
         if (settings.stall === "create") return new Promise(() => {});
         if (settings.stall === "create-body") return { ok: true, json: () => new Promise(() => {}) };
+        const data = JSON.parse(request.body); job.name = data.stem === undefined ? data.name : data.stem + data.name.slice(data.name.lastIndexOf('.'));
         return new Response(JSON.stringify(job));
       }
-      if (url === "/transfer/api/uploads/" + job.id) return new Response(JSON.stringify(job));
+      if (url === "/transfer/api/uploads/" + job.id) {
+        if (request.method === "PATCH") {
+          const data = JSON.parse(request.body);
+          if (settings.renameUnauthorized) return new Response('{"error":"请先登录"}', {status:401});
+          if (data.expected_name !== job.name) return new Response('{"error":"文件名称已变化"}', {status:409});
+          job.name = data.stem + job.name.slice(job.name.lastIndexOf('.'));
+          if (settings.loseRenameReply) { settings.loseRenameReply = false; return new Promise(() => {}); }
+          return new Response(JSON.stringify({ok:true,id:job.id,name:job.name}));
+        }
+        return new Response(JSON.stringify(job));
+      }
       if (url.endsWith("/complete")) {
         job.state = "ready";
         if (settings.stall === "complete") { settings.stall = ""; return new Promise(() => {}); }
@@ -118,16 +130,71 @@ async function harness(t, options = {}) {
       throw new Error("Unexpected synthetic request: " + url);
     },
   });
-  vm.runInContext(source + "\nglobalThis.testState=state; globalThis.testRefreshStats=refreshStats;", context);
+  vm.runInContext(source + "\nglobalThis.testState=state; globalThis.testRefreshStats=refreshStats; globalThis.testRenderQueue=renderQueue; globalThis.testOpenRename=openRename; globalThis.testSaveFilename=saveFilename; globalThis.testRestoreDraft=restoreDraft;", context);
   await tick(); await tick();
   const bytes = options.bytes || new Uint8Array([0, 1, 2, 255]);
   const file = new File([bytes], "synthetic.jpg");
-  const entry = { id: options.existing ? job.id : null, file, name: file.name, size: file.size, fingerprint: "b".repeat(64), status: "待发送", progress: 0 };
+  const entry = { id: options.existing ? job.id : null, file, name: file.name, originalName: file.name, size: file.size, fingerprint: "b".repeat(64), status: "待发送", progress: 0 };
   context.testState.files = [entry];
-  return { node, state: context.testState, entry, job, records, calls, sends, readers, settings,
+  return { node, state: context.testState, entry, job, records, calls, sends, readers, settings, context, storage,
     send: () => node("send-button").emit("click"), cancel: () => node("cancel-send").emit("click"),
     resize: () => windowListeners.get("resize")(), refreshStats: context.testRefreshStats };
 }
+
+test("上传前主名称编辑保留原后缀，同次创建任务保存名称，原文件和指纹保持不变", async t => {
+  const h = await harness(t); h.context.testRenderQueue();
+  const descendants = node => [node, ...(node.children || []).flatMap(descendants)];
+  const input = descendants(h.node('attachment-list')).find(node => node.className === 'filename-input');
+  const suffix = descendants(h.node('attachment-list')).find(node => node.className === 'filename-suffix');
+  assert.equal(suffix.textContent, '.jpg'); input.value = '路由器端口配置'; input.emit('input');
+  await h.send();
+  const create = h.calls.find(call => call.url === '/transfer/api/uploads');
+  assert.equal(JSON.parse(create.request.body).name, 'synthetic.jpg');
+  assert.equal(JSON.parse(create.request.body).stem, '路由器端口配置');
+  assert.equal(h.entry.file.name, 'synthetic.jpg'); assert.equal(h.job.name, '路由器端口配置.jpg');
+  assert.equal(h.calls.filter(call => call.request.method === 'PATCH').length, 0);
+  assert.equal(hash(Buffer.from(h.sends[0].buffer)), hash(Buffer.from([0,1,2,255])));
+});
+
+test("常见复合归档后缀整体只读，名称中的普通版本号仍可编辑", async t => {
+  const h = await harness(t); h.entry.name=h.entry.originalName='archive.TAR.GZ'; h.context.testRenderQueue();
+  const descendants = node => [node, ...(node.children || []).flatMap(descendants)];
+  const nodes=descendants(h.node('attachment-list'));
+  assert.equal(nodes.find(node=>node.className==='filename-input').value,'archive');
+  assert.equal(nodes.find(node=>node.className==='filename-suffix').textContent,'.TAR.GZ');
+});
+
+test("空主名称不能发送，不把单独后缀误当成主名称", async t => {
+  const h = await harness(t); h.entry.name = '.jpg'; await h.send();
+  assert.equal(h.records.size, 0); assert.equal(h.calls.filter(call => call.url === '/transfer/api/uploads').length, 0);
+});
+
+test("续传时保存原名、目标名及已确认名称，改名丢失响应只查询不重发", async t => {
+  const h = await harness(t, { existing:true, loseRenameReply:true });
+  h.entry.name = '自定义文件.jpg'; await h.send();
+  assert.equal(h.job.name, '自定义文件.jpg'); assert.equal(h.records.size, 1);
+  assert.equal(h.calls.filter(call => call.request.method === 'PATCH').length, 1);
+  assert.equal(h.entry.originalName, 'synthetic.jpg');
+});
+
+test("旧名称与服务端不一致时拒绝改名并保留待发送附件", async t => {
+  const h = await harness(t, {existing:true}); h.entry.name='本机修改.jpg'; h.entry.serverName='synthetic.jpg'; h.job.name='其他设备修改.jpg';
+  await h.send(); assert.equal(h.records.size,0); assert.equal(h.state.files.length,1); assert.match(h.entry.status,/已变化/);
+});
+
+test("历史文件改名弹窗只编辑主名称，保存中禁止重复提交，列表使用新名称", async t => {
+  const h = await harness(t); h.context.testOpenRename({id:h.job.id,name:'synthetic.jpg'});
+  assert.equal(h.node('rename-name').value,'synthetic'); assert.equal(h.node('rename-suffix').textContent,'.jpg');
+  h.node('rename-name').value='自定义图片';
+  const first=h.node('rename-form').emit('submit'); await h.node('rename-form').emit('submit'); await first;
+  assert.equal(h.job.name,'自定义图片.jpg'); assert.equal(h.node('rename-dialog').open,false);
+  assert.equal(h.calls.filter(call=>call.request.method==='PATCH').length,1);
+});
+
+test("改名遇到登录失效时关闭弹窗，不再显示成功或保留私人内容", async t => {
+  const h=await harness(t,{renameUnauthorized:true});h.context.testOpenRename({id:h.job.id,name:'synthetic.jpg'});h.node('rename-name').value='test';
+  await h.node('rename-form').emit('submit');assert.equal(h.node('rename-dialog').open,false);assert.equal(h.state.authenticated,false);assert.equal(h.job.name,'synthetic.jpg');
+});
 
 test("creating a task or reading its response cannot leave sending permanently active", async t => {
   const h = await harness(t, { deadline: 10 });

@@ -82,6 +82,15 @@
     </main>
   </div>
   <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="rename-dialog" aria-labelledby="rename-title">
+    <form id="rename-form">
+      <h2 id="rename-title">重命名文件</h2>
+      <label class="filename-field" for="rename-name"><span class="filename-label">文件名称</span></label>
+      <div class="filename-row"><input id="rename-name" class="filename-input" type="text" required autocomplete="off" maxlength="240"><span id="rename-suffix" class="filename-suffix"></span></div>
+      <p id="rename-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="rename-cancel" class="secondary" type="button">取消</button><button id="rename-save" class="primary" type="submit">保存名称</button></div>
+    </form>
+  </dialog>
   <dialog id="image-preview" aria-labelledby="image-preview-title">
     <header class="image-preview-toolbar">
       <strong id="image-preview-title"></strong>

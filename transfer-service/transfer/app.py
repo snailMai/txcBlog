@@ -238,11 +238,20 @@ def create_app(directory=None, origin=None, quota=20_000_000_000, testing=False,
     @app.post("/api/uploads")
     def begin_upload():
         data = body()
-        return jsonify(store.begin(data.get("name"), data.get("size"), data.get("fingerprint"))), 201
+        if "stem" in data and not isinstance(data["stem"], str):
+            raise Problem("文件名无效")
+        return jsonify(store.begin(data.get("name"), data.get("size"), data.get("fingerprint"), data.get("stem"))), 201
 
     @app.get("/api/uploads/<upload_id>")
     def upload_status(upload_id):
         return jsonify(store.get_upload(upload_id))
+
+    @app.patch("/api/uploads/<upload_id>")
+    def rename_upload(upload_id):
+        data = body()
+        if set(data) != {"stem", "expected_name"}:
+            raise Problem("改名参数无效")
+        return jsonify(ok=True, **store.rename(upload_id, data["stem"], data["expected_name"]))
 
     @app.put("/api/uploads/<upload_id>/chunks/<int:index>")
     def chunk(upload_id, index):
